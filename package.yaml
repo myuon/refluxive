@@ -1,10 +1,10 @@
 name:                lefrect
 version:             0.1.0.0
-github:              "githubuser/lefrect"
+github:              myuon/lefrect
 license:             MIT
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2018 Author name here"
+author:              myuon
+maintainer:          ioi.joi.koi.loi@gmail.com
+copyright:           2018 myuon
 
 extra-source-files:
 - README.md
@@ -17,7 +17,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/lefrect#readme>
+description:         Please see the README on GitHub at <https://github.com/myuon/lefrect#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -26,9 +26,9 @@ library:
   source-dirs: src
 
 executables:
-  lefrect-exe:
+  lefrect-example:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         example
     ghc-options:
     - -threaded
     - -rtsopts
@@ -36,13 +36,3 @@ executables:
     dependencies:
     - lefrect
 
-tests:
-  lefrect-test:
-    main:                Spec.hs
-    source-dirs:         test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - lefrect
