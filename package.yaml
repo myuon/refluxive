@@ -21,6 +21,11 @@ description:         Please see the README on GitHub at <https://github.com/myuo
 
 dependencies:
 - base >= 4.7 && < 5
+- sdl2
+- sdl2-ttf
+- sdl2-gfx
+- linear
+- mtl
 
 library:
   source-dirs: src
