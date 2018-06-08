@@ -10,6 +10,10 @@ extra-source-files:
 - README.md
 - ChangeLog.md
 
+default-extensions:
+- Strict
+- MultiWayIf
+
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            Web
@@ -26,6 +30,8 @@ dependencies:
 - sdl2-gfx
 - linear
 - mtl
+- extensible
+- lens
 
 library:
   source-dirs: src

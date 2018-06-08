@@ -1,11 +1,12 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLabels #-}
 module Main where
 
 import qualified SDL as SDL
-import Lefrect
 import Control.Monad
+import Data.Extensible
 import Linear.V2
 import Linear.V4
+import Lefrect
 
 main :: IO ()
 main = do
@@ -34,6 +35,8 @@ main = do
           [ rectangle (V2 1 0) (V2 1 1)
           , rectangle (V2 0 1) (V2 1 1)
           ]
+        , colored (V4 200 100 100 255) $ rectangleWith (#fill @= False <: nil) (V2 4 4) (V2 1 1)
+        , colored (V4 200 100 100 255) $ rectangleWith (#rounded @= Just 10 <: nil) (V2 5 5) (V2 1 1)
         ]
 
       SDL.present renderer
