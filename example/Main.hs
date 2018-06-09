@@ -6,7 +6,7 @@ import Control.Monad
 import Data.Extensible
 import Linear.V2
 import Linear.V4
-import Lefrect
+import Graphics.UI.Lefrect
 
 main :: IO ()
 main = do

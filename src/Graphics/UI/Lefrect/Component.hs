@@ -1,4 +1,4 @@
-module Component
+module Graphics.UI.Lefrect.Component
   ( Component(..)
   , new
   , on
@@ -7,7 +7,7 @@ module Component
   , view
   ) where
 
-import Graphical
+import Graphics.UI.Lefrect.Graphical
 import Control.Monad.State
 import Data.IORef
 import Linear.V2
