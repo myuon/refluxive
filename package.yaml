@@ -18,6 +18,7 @@ default-extensions:
 - PolyKinds
 - FlexibleInstances
 - LambdaCase
+- TemplateHaskell
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
