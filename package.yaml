@@ -13,6 +13,11 @@ extra-source-files:
 default-extensions:
 - Strict
 - MultiWayIf
+- TypeFamilies
+- DataKinds
+- PolyKinds
+- FlexibleInstances
+- LambdaCase
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package

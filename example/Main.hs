@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, OverloadedLabels #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLabels, TypeApplications #-}
 module Main where
 
 import qualified SDL as SDL
@@ -13,11 +13,13 @@ main = do
   SDL.initializeAll
   window <- SDL.createWindow "Application" SDL.defaultWindow
   renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
+  counter <- create @_ @"counter"
+  counterView <- view counter
 
-  loop renderer
+  loop renderer counterView
 
   where
-    loop renderer = do
+    loop renderer counterView = do
       events <- SDL.pollEvents
       keyQuit <- return $ flip any events $ \ev -> case SDL.eventPayload ev of
         SDL.KeyboardEvent (SDL.KeyboardEventData _ _ _ (SDL.Keysym SDL.ScancodeQ _ _)) -> True
@@ -37,8 +39,9 @@ main = do
           ]
         , colored (V4 200 100 100 255) $ rectangleWith (#fill @= False <: nil) (V2 4 4) (V2 1 1)
         , colored (V4 200 100 100 255) $ rectangleWith (#rounded @= Just 10 <: nil) (V2 5 5) (V2 1 1)
+        , translate (V2 200 0) counterView
         ]
 
       SDL.present renderer
-      unless keyQuit $ loop renderer
+      unless keyQuit $ loop renderer counterView
 

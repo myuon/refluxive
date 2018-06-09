@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, OverloadedLabels, DataKinds, FlexibleContexts, PolyKinds #-}
+{-# LANGUAGE TypeOperators, OverloadedLabels, FlexibleContexts, PolyKinds #-}
 module Graphical
   ( Layout(..)
   , Graphical
