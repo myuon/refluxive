@@ -1,13 +1,15 @@
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE ExistentialQuantification #-}
 module Graphics.UI.Lefrect.Component
   ( Component(..)
   , ComponentView(..)
+  , Watcher(..)
+  , getWatcherTgtUID
   , new
   , on
-  , emit
   , create
   , view
   , exec
-  , rawGraphical
   ) where
 
 import qualified SDL as SDL
@@ -19,13 +21,21 @@ import GHC.TypeLits (symbolVal, KnownSymbol)
 
 type EventStream a = IORef [a]
 
-class KnownSymbol a => Component a where
+data Watcher m tgt = forall src. (Component m src, Component m tgt) => Watcher String (Signal src -> StateT (Model tgt) m ())
+
+getWatcherTgtUID :: Component m tgt => Watcher m tgt -> String
+getWatcherTgtUID w = uid w
+
+class KnownSymbol a => Component m a | a -> m where
   data family View a
   data family Model a
   data family Signal a
 
   uid :: proxy a -> String
   uid = symbolVal
+
+  watcher :: proxy a -> [Watcher m a]
+  watcher _ = []
 
   setup :: MonadIO m => m (View a)
   getComponentView :: View a -> ComponentView a
@@ -54,29 +64,13 @@ on cp callback = cp { callbacks = \signal -> callback signal >> callbacks cp sig
 emit :: ComponentView a -> Signal a -> IO ()
 emit cp s = modifyIORef (event cp) (s:)
 
-instance Component "raw" where
-  data View "raw" = RawView (ComponentView "raw")
-  data Model "raw" = RawModel Graphical
-  data Signal "raw"
-
-  setup = do
-    cp <- liftIO $ new $ RawModel empty
-    return $ RawView cp
-
-  getComponentView (RawView x) = x
-
-  getGraphical (RawModel g) = return g
-
-rawGraphical :: View "raw" -> Graphical -> View "raw"
-rawGraphical (RawView cp) g = RawView $ cp { model = RawModel g }
-
-create :: (MonadIO m, Component a) => m (ComponentView a)
+create :: (MonadIO m, Component m a) => m (ComponentView a)
 create = fmap getComponentView setup
 
-view :: (MonadIO m, Component a) => ComponentView a -> m Graphical
+view :: (MonadIO m, Component m a) => ComponentView a -> m Graphical
 view cp = getGraphical (model cp)
 
-exec :: (MonadIO m, Component a) => ComponentView a -> m (ComponentView a)
+exec :: (MonadIO m, Component m a) => ComponentView a -> m (ComponentView a)
 exec cp = liftIO $ fmap (\m -> cp { model = m }) $ (`execStateT` (model cp)) $ do
   events <- liftIO $ readIORef $ event cp
   mapM_ (\ev -> callbacks cp ev) events

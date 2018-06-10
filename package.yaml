@@ -17,8 +17,10 @@ default-extensions:
 - DataKinds
 - PolyKinds
 - FlexibleInstances
+- FlexibleContexts
 - LambdaCase
 - TemplateHaskell
+- MultiParamTypeClasses
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -40,6 +42,7 @@ dependencies:
 - lens
 - vector
 - containers
+- stm
 
 library:
   source-dirs: src
