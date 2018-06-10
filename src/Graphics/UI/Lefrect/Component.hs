@@ -6,10 +6,8 @@ module Graphics.UI.Lefrect.Component
   , Watcher(..)
   , getWatcherTgtUID
   , new
-  , on
   , create
   , view
-  , exec
   ) where
 
 import qualified SDL as SDL
@@ -43,36 +41,18 @@ class KnownSymbol a => Component m a | a -> m where
 
 data ComponentView a
   = ComponentView
-  { event :: EventStream (Signal a)
-  , callbacks :: Signal a -> StateT (Model a) IO ()
-  , model :: Model a
+  { model :: Model a
   }
 
 new :: Model a -> IO (ComponentView a)
 new model = do
-  stream <- newIORef []
-
   return $ ComponentView
-    { event = stream
-    , callbacks = \_ -> return ()
-    , model = model
+    { model = model
     }
-
-on :: ComponentView a -> (Signal a -> StateT (Model a) IO ()) -> ComponentView a
-on cp callback = cp { callbacks = \signal -> callback signal >> callbacks cp signal }
-
-emit :: ComponentView a -> Signal a -> IO ()
-emit cp s = modifyIORef (event cp) (s:)
 
 create :: (MonadIO m, Component m a) => m (ComponentView a)
 create = fmap getComponentView setup
 
 view :: (MonadIO m, Component m a) => ComponentView a -> m Graphical
 view cp = getGraphical (model cp)
-
-exec :: (MonadIO m, Component m a) => ComponentView a -> m (ComponentView a)
-exec cp = liftIO $ fmap (\m -> cp { model = m }) $ (`execStateT` (model cp)) $ do
-  events <- liftIO $ readIORef $ event cp
-  mapM_ (\ev -> callbacks cp ev) events
-  liftIO $ writeIORef (event cp) []
 
