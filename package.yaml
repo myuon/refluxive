@@ -38,6 +38,8 @@ dependencies:
 - mtl
 - extensible
 - lens
+- vector
+- containers
 
 library:
   source-dirs: src

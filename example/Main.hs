@@ -9,10 +9,11 @@ import Graphics.UI.Lefrect
 
 main :: IO ()
 main = runUI $ do
-  counter <- create @_ @"counter"
-  counterView <- view counter
+  counter <- setup @"counter"
+  register (GridLayout 50 50) counter
 
-  ui (GridLayout 50 50) $ translate (V2 100 100) $ graphics $
+  raw <- setup @"raw"
+  register (GridLayout 50 50) $ rawGraphical raw $ translate (V2 100 100) $ graphics $
     [ colored (V4 30 30 30 255) $ graphics $
       [ rectangle (V2 0 0) (V2 1 1)
       , rectangle (V2 1 1) (V2 1 1)
@@ -23,7 +24,6 @@ main = runUI $ do
       ]
     , colored (V4 200 100 100 255) $ rectangleWith (#fill @= False <: nil) (V2 4 4) (V2 1 1)
     , colored (V4 200 100 100 255) $ rectangleWith (#rounded @= Just 10 <: nil) (V2 5 5) (V2 1 1)
-    , translate (V2 200 0) counterView
     ]
 
   mainloop

@@ -3,6 +3,7 @@ module Graphics.UI.Lefrect.Graphical
   ( Layout(..)
   , Graphical
 
+  , empty
   , rectangle
   , rectangleWith
   , colored
@@ -15,7 +16,7 @@ module Graphics.UI.Lefrect.Graphical
 import qualified SDL as SDL
 import qualified SDL.Primitive as SDL
 import Linear.V2
-import Control.Lens
+import Control.Lens ((^.), (.~), (&))
 import Control.Monad.Trans
 import Data.Extensible
 import Foreign.C.Types
@@ -40,7 +41,8 @@ defShapeStyle
   <: nil
 
 data Graphical
-  = Rectangle (Record ShapeStyle) SDL.Pos SDL.Pos
+  = Empty
+  | Rectangle (Record ShapeStyle) SDL.Pos SDL.Pos
   | Colored SDL.Color Graphical
   | Translate SDL.Pos Graphical
   | Graphics [Graphical]
@@ -61,6 +63,7 @@ defRenderState
 render :: MonadIO m => SDL.Renderer -> Layout -> Graphical -> m ()
 render renderer layout = go defRenderState where
   go :: MonadIO m => RenderState -> Graphical -> m ()
+  go st Empty = return ()
   go st (Rectangle style pos size) =
     let topLeft = calcCoordinate layout pos + coordinate st in
     let bottomRight = calcCoordinate layout (pos + size) + coordinate st in
@@ -72,6 +75,9 @@ render renderer layout = go defRenderState where
   go st (Colored color g) = go (st { color = color }) g
   go st (Translate p g) = go (st { coordinate = coordinate st + p }) g
   go st (Graphics gs) = mapM_ (go st) gs
+
+empty :: Graphical
+empty = Empty
 
 rectangleWith :: IncludeAssoc ShapeStyle xs => Record xs -> SDL.Pos -> SDL.Pos -> Graphical
 rectangleWith cfg = Rectangle (hmergeAssoc cfg defShapeStyle)
