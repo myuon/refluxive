@@ -12,11 +12,11 @@ module Graphics.UI.Lefrect
   ) where
 
 import qualified SDL as SDL
+import Control.Concurrent.MVar
 import Control.Lens hiding (view)
 import Control.Monad.State
 import Control.Monad.Cont
 import Data.Word (Word8)
-import Data.IORef
 import qualified Data.Vector.Mutable as V
 import qualified Data.IntSet as S
 import Linear.V4
@@ -52,15 +52,30 @@ pushRegistry a reg = (`runContT` return) $ callCC $ \return_ -> do
   liftIO $ V.write content' length a
   return $ (length, reg & content .~ content' & keys %~ S.insert length)
 
+data SomeSignal = forall a. Component a => SomeSignal (Signal a)
+newtype EventStream = EventStream { getEventStream :: MVar [(String, SomeSignal)] }
+
+newEventStream :: IO EventStream
+newEventStream = fmap EventStream $ newMVar []
+
+pushEvent :: Component a => EventStream -> Signal a -> IO ()
+pushEvent stream s = modifyMVar_ (getEventStream stream) (\es -> return $ (uid s, SomeSignal s) : es)
+
+pullEvents :: EventStream -> IO [(String, SomeSignal)]
+pullEvents stream = do
+  es <- readMVar (getEventStream stream)
+  putMVar (getEventStream stream) []
+  return es
+
 newtype UI a = UI { unpackUI :: StateT UIState IO a } deriving (Functor, Applicative, Monad, MonadIO)
 
 data SomeComponent = forall a. Component a => SomeComponent (ComponentView a)
 
 data UIState
   = UIState
-  { _window :: SDL.Window
-  , _renderer :: SDL.Renderer
+  { _renderer :: SDL.Renderer
   , _registry :: Registry SomeComponent
+  , _eventStream :: EventStream
   }
 
 makeLenses ''UIState
@@ -68,15 +83,11 @@ makeLenses ''UIState
 runUI :: UI () -> IO ()
 runUI m = do
   SDL.initializeAll
-  window <- SDL.createWindow "window" SDL.defaultWindow
-  renderer <- SDL.createRenderer window (-1) SDL.defaultRenderer
-  registry <- newRegistry
 
-  evalStateT (unpackUI m) $ UIState
-    { _window = window
-    , _renderer = renderer
-    , _registry = registry
-    }
+  evalStateT (unpackUI m) =<< UIState
+    <$> ((\w -> SDL.createRenderer w (-1) SDL.defaultRenderer) =<< SDL.createWindow "window" SDL.defaultWindow)
+    <*> newRegistry
+    <*> newEventStream
 
 register :: Component a => View a -> UI ()
 register v = do

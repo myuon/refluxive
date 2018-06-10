@@ -15,13 +15,17 @@ import SDL.Vect
 import Graphics.UI.Lefrect.Graphical
 import Control.Monad.State
 import Data.IORef
+import GHC.TypeLits (symbolVal, KnownSymbol)
 
 type EventStream a = IORef [a]
 
-class Component a where
+class KnownSymbol a => Component a where
   data family View a
   data family Model a
   data family Signal a
+
+  uid :: proxy a -> String
+  uid = symbolVal
 
   setup :: MonadIO m => m (View a)
   getComponentView :: View a -> ComponentView a
