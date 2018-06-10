@@ -60,7 +60,7 @@ data UIState
   = UIState
   { _window :: SDL.Window
   , _renderer :: SDL.Renderer
-  , _registry :: Registry (Layout, SomeComponent)
+  , _registry :: Registry SomeComponent
   }
 
 makeLenses ''UIState
@@ -78,12 +78,12 @@ runUI m = do
     , _registry = registry
     }
 
-register :: Component a => Layout -> View a -> UI ()
-register layout v = do
+register :: Component a => View a -> UI ()
+register v = do
   let cp = getComponentView v
   UI $ do
     reg <- use registry
-    (_, reg') <- liftIO $ pushRegistry (layout, SomeComponent cp) reg
+    (_, reg') <- liftIO $ pushRegistry (SomeComponent cp) reg
     registry .= reg'
 
 clear :: V4 Word8 -> UI ()
@@ -106,8 +106,8 @@ mainloop = do
   r <- UI $ use renderer
   reg <- UI $ use registry
   forM_ (S.elems $ reg ^. keys) $ \i -> liftIO $ do
-    (layout, SomeComponent cp) <- V.read (reg ^. content) i
-    view cp >>= render r layout
+    SomeComponent cp <- V.read (reg ^. content) i
+    view cp >>= render r
 
   -- commit view changes
   SDL.present =<< UI (use renderer)
@@ -115,8 +115,8 @@ mainloop = do
   -- event handling
   reg <- UI $ use registry
   forM_ (S.elems $ reg ^. keys) $ \i -> liftIO $ do
-    (layout, SomeComponent cp) <- V.read (reg ^. content) i
-    V.write (reg ^. content) i . (\cp -> (layout, SomeComponent cp)) =<< exec cp
+    SomeComponent cp <- V.read (reg ^. content) i
+    V.write (reg ^. content) i . SomeComponent =<< exec cp
 
   -- quit?
   unless keyQuit mainloop

@@ -38,10 +38,10 @@ instance Component "counter" where
 main :: IO ()
 main = runUI $ do
   counter <- setup @"counter"
-  register Pixel counter
+  register counter
 
   raw <- setup @"raw"
-  register (GridLayout 50 50) $ rawGraphical raw $ translate (V2 100 100) $ graphics $
+  register $ rawGraphical raw $ gridLayout (V2 50 50) $ translate (V2 2 2) $ graphics $
     [ colored (V4 30 30 30 255) $ graphics $
       [ rectangle (V2 0 0) (V2 1 1)
       , rectangle (V2 1 1) (V2 1 1)
