@@ -1,16 +1,44 @@
 {-# LANGUAGE OverloadedStrings, OverloadedLabels, TypeApplications #-}
 module Main where
 
+import qualified SDL as SDL
+import SDL.Vect
 import Control.Monad
+import Control.Monad.State
 import Data.Extensible
-import Linear.V2
-import Linear.V4
+import Data.Ix (inRange)
 import Graphics.UI.Lefrect
+
+instance Component "counter" where
+  data View "counter" = CounterView (ComponentView "counter")
+  data Model "counter" = CounterModel Int
+  data Signal "counter" = Clicked
+
+  setup = do
+    cp <- liftIO $ new (CounterModel 0)
+
+    SDL.addEventWatch $ \case
+      SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (P pos))) -> do
+        when (inRange (V2 0 0, V2 200 100) pos) $ emit cp Clicked
+      _ -> return ()
+
+    return $ CounterView $ cp `on` \case
+      Clicked -> do
+        CounterModel c <- get
+        modify $ \(CounterModel n) -> CounterModel (n+1)
+        lift $ putStrLn $ "counter:" ++ show c
+
+  getComponentView (CounterView x) = x
+
+  getGraphical (CounterModel n) = do
+    return $ graphics
+      [ colored (V4 100 200 255 255) $ rectangle (V2 0 0) (V2 200 100)
+      ]
 
 main :: IO ()
 main = runUI $ do
   counter <- setup @"counter"
-  register (GridLayout 50 50) counter
+  register Pixel counter
 
   raw <- setup @"raw"
   register (GridLayout 50 50) $ rawGraphical raw $ translate (V2 100 100) $ graphics $

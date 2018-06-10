@@ -15,7 +15,6 @@ import SDL.Vect
 import Graphics.UI.Lefrect.Graphical
 import Control.Monad.State
 import Data.IORef
-import Data.Ix
 
 type EventStream a = IORef [a]
 
@@ -50,34 +49,6 @@ on cp callback = cp { callbacks = \signal -> callback signal >> callbacks cp sig
 
 emit :: ComponentView a -> Signal a -> IO ()
 emit cp s = modifyIORef (event cp) (s:)
-
-instance Component "counter" where
-  data View "counter" = CounterView (ComponentView "counter")
-  data Model "counter" = CounterModel Int
-  data Signal "counter" = Clicked
-
-  setup = do
-    cp <- liftIO $ new (CounterModel 0)
-
-    SDL.addEventWatch $ \case
-      SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ _ _ SDL.ButtonLeft 1 (P pos))) -> do
-        when (inRange (V2 0 0, V2 200 100) pos) $ do
-          print "click signal"
-          emit cp Clicked
-      _ -> return ()
-
-    return $ CounterView $ cp `on` \case
-      Clicked -> do
-        CounterModel c <- get
-        modify $ \(CounterModel n) -> CounterModel (n+1)
-        lift $ putStrLn $ "counter:" ++ show c
-
-  getComponentView (CounterView x) = x
-
-  getGraphical (CounterModel n) = do
-    return $ graphics
-      [ colored (V4 100 200 255 255) $ rectangle (V2 0 0) (V2 2 1)
-      ]
 
 instance Component "raw" where
   data View "raw" = RawView (ComponentView "raw")
