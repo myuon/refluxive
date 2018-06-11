@@ -3,6 +3,7 @@ module Graphics.UI.Lefrect.Graphical
   ( Graphical
 
   , empty
+  , text
   , gridLayout
   , rectangle
   , rectangleWith
@@ -15,10 +16,13 @@ module Graphics.UI.Lefrect.Graphical
 
 import qualified SDL as SDL
 import qualified SDL.Primitive as SDL
+import qualified SDL.Font as SDLF
 import Linear.V2
 import Control.Lens ((^.), (.~), (&))
 import Control.Monad.Trans
 import Data.Extensible
+import qualified Data.Text as T
+import Data.Maybe
 import Foreign.C.Types
 
 type ShapeStyle =
@@ -39,6 +43,7 @@ data Graphical
   | Colored SDL.Color Graphical
   | Translate SDL.Pos Graphical
   | Graphics [Graphical]
+  | Text T.Text
 
 data RenderState
   = RenderState
@@ -55,8 +60,8 @@ defRenderState
   , scaler = SDL.V2 1 1
   }
 
-render :: MonadIO m => SDL.Renderer -> Graphical -> m ()
-render renderer = go defRenderState where
+render :: MonadIO m => Maybe SDLF.Font -> SDL.Renderer -> Graphical -> m ()
+render mfont renderer = go defRenderState where
   go :: MonadIO m => RenderState -> Graphical -> m ()
   go st Empty = return ()
   go st (GridLayout s g) = go (st { scaler = s }) g
@@ -71,9 +76,20 @@ render renderer = go defRenderState where
   go st (Colored color g) = go (st { color = color }) g
   go st (Translate p g) = go (st { coordinate = coordinate st + p * scaler st }) g
   go st (Graphics gs) = mapM_ (go st) gs
+  go st (Text txt) = do
+    surface <- SDLF.blended (fromJust mfont) (color st) txt
+    texture <- SDL.createTextureFromSurface renderer surface
+    SDL.textureBlendMode texture SDL.$= SDL.BlendAlphaBlend
+    tinfo <- SDL.queryTexture texture
+    let size = V2 (SDL.textureWidth tinfo) (SDL.textureHeight tinfo)
+    SDL.copy renderer texture (Just $ SDL.Rectangle (SDL.P 0) size) (Just $ SDL.Rectangle (SDL.P (coordinate st)) size)
+    SDL.freeSurface surface
 
 empty :: Graphical
 empty = Empty
+
+text :: T.Text -> Graphical
+text = Text
 
 gridLayout :: SDL.Pos -> Graphical -> Graphical
 gridLayout = GridLayout

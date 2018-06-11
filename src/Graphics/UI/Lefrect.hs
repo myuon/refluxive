@@ -16,6 +16,7 @@ module Graphics.UI.Lefrect
   ) where
 
 import qualified SDL as SDL
+import qualified SDL.Font as SDLF
 import Control.Concurrent.STM.TChan
 import Control.Lens hiding (view)
 import Control.Monad.STM
@@ -95,6 +96,7 @@ data UIState
   , _registry :: Registry SomeComponent
   , _eventStream :: EventStream
   , _distributer :: M.Map String [SomeCallback]
+  , _font :: Maybe SDLF.Font
   }
 
 makeLenses ''UIState
@@ -102,12 +104,14 @@ makeLenses ''UIState
 runUI :: UI () -> IO ()
 runUI m = do
   SDL.initializeAll
+  SDLF.initialize
 
   evalStateT (unpackUI m) =<< UIState
     <$> ((\w -> SDL.createRenderer w (-1) SDL.defaultRenderer) =<< SDL.createWindow "window" SDL.defaultWindow)
     <*> newRegistry
     <*> newEventStream
     <*> pure M.empty
+    <*> fmap Just (SDLF.load "/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf" 20)
 
 register :: Component UI a => View a -> UI ()
 register v = do
@@ -143,11 +147,13 @@ mainloop = do
   clear (V4 30 100 200 255)
 
   -- render all components
-  r <- UI $ use renderer
   reg <- UI $ use registry
   forM_ (S.elems $ reg ^. keys) $ \i -> do
     SomeComponent cp <- liftIO $ V.read (reg ^. content) i
-    view cp >>= render r
+
+    r <- UI $ use renderer
+    f <- UI $ use font
+    view cp >>= render f r
 
   -- commit view changes
   SDL.present =<< UI (use renderer)
@@ -167,6 +173,9 @@ mainloop = do
 
   -- quit?
   unless keyQuit mainloop
+
+  SDLF.quit
+  SDL.quit
 
 watch :: (Component UI src, Component UI tgt) => String -> (Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
 watch = Watcher

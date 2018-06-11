@@ -56,6 +56,7 @@ main = runUI $ do
       ]
     , colored (V4 200 100 100 255) $ rectangleWith (#fill @= False <: nil) (V2 4 4) (V2 1 1)
     , colored (V4 200 100 100 255) $ rectangleWith (#rounded @= Just 10 <: nil) (V2 5 5) (V2 1 1)
+    , colored (V4 255 0 0 255) $ text "Hello, World!"
     ]
 
   mainloop
