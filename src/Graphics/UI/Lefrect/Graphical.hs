@@ -76,6 +76,7 @@ render mfont renderer = go defRenderState where
   go st (Colored color g) = go (st { color = color }) g
   go st (Translate p g) = go (st { coordinate = coordinate st + p * scaler st }) g
   go st (Graphics gs) = mapM_ (go st) gs
+  go st (Text txt) | T.null txt = return ()
   go st (Text txt) = do
     surface <- SDLF.blended (fromJust mfont) (color st) txt
     texture <- SDL.createTextureFromSurface renderer surface
