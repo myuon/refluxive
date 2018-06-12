@@ -43,18 +43,31 @@ dependencies:
 - vector
 - containers
 - stm
+- text
 
 library:
   source-dirs: src
 
 executables:
-  lefrect-example:
-    main:                Main.hs
+  example-helloworld:
+    main:                HelloWorld.hs
     source-dirs:         example
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -main-is HelloWorld
     dependencies:
     - lefrect
+  example-todomvc:
+    main:                TodoMVC.hs
+    source-dirs:         example
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -main-is TodoMVC
+    dependencies:
+    - lefrect
+
 

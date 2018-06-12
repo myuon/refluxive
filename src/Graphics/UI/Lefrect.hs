@@ -113,15 +113,14 @@ runUI m = do
     <*> pure M.empty
     <*> fmap Just (SDLF.load "/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf" 20)
 
-register :: Component UI a => View a -> UI ()
-register v = do
-  let cp = getComponentView v
+register :: Component UI a => ComponentView a -> UI ()
+register cp = do
   UI $ do
     reg <- use registry
     (_, reg') <- liftIO $ pushRegistry (uid cp) (SomeComponent cp) reg
     registry .= reg'
 
-  mapM_ addWatchSignal $ watcher v
+  mapM_ addWatchSignal $ watcher cp
 
 clear :: V4 Word8 -> UI ()
 clear c = UI $ do
@@ -187,19 +186,16 @@ addWatchSignal (w@(Watcher name callback)) = UI $ do
   distributer . ix name %= (:) (SomeCallback (getWatcherTgtUID w) callback)
 
 instance Component UI "raw" where
-  data View "raw" = RawView (ComponentView "raw")
   data Model "raw" = RawModel Graphical
   data Signal "raw"
 
   setup = do
     cp <- liftIO $ new $ RawModel empty
-    return $ RawView cp
-
-  getComponentView (RawView x) = x
+    return cp
 
   getGraphical (RawModel g) = return g
 
-rawGraphical :: View "raw" -> Graphical -> View "raw"
-rawGraphical (RawView cp) g = RawView $ cp { model = RawModel g }
+rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
+rawGraphical cp g = cp { model = RawModel g }
 
 

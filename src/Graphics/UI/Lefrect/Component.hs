@@ -6,7 +6,6 @@ module Graphics.UI.Lefrect.Component
   , Watcher(..)
   , getWatcherTgtUID
   , new
-  , create
   , view
   ) where
 
@@ -24,8 +23,12 @@ data Watcher m tgt = forall src. (Component m src, Component m tgt) => Watcher S
 getWatcherTgtUID :: Component m tgt => Watcher m tgt -> String
 getWatcherTgtUID w = uid w
 
+data ComponentView a
+  = ComponentView
+  { model :: Model a
+  }
+
 class KnownSymbol a => Component m a | a -> m where
-  data family View a
   data family Model a
   data family Signal a
 
@@ -35,23 +38,14 @@ class KnownSymbol a => Component m a | a -> m where
   watcher :: proxy a -> [Watcher m a]
   watcher _ = []
 
-  setup :: MonadIO m => m (View a)
-  getComponentView :: View a -> ComponentView a
+  setup :: MonadIO m => m (ComponentView a)
   getGraphical :: MonadIO m => Model a -> m Graphical
-
-data ComponentView a
-  = ComponentView
-  { model :: Model a
-  }
 
 new :: Model a -> IO (ComponentView a)
 new model = do
   return $ ComponentView
     { model = model
     }
-
-create :: (MonadIO m, Component m a) => m (ComponentView a)
-create = fmap getComponentView setup
 
 view :: (MonadIO m, Component m a) => ComponentView a -> m Graphical
 view cp = getGraphical (model cp)

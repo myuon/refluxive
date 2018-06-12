@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, OverloadedLabels, TypeApplications #-}
-module Main where
+module HelloWorld where
 
 import qualified SDL as SDL
 import SDL.Vect
@@ -10,7 +10,6 @@ import Data.Ix (inRange)
 import Graphics.UI.Lefrect
 
 instance Component UI "counter" where
-  data View "counter" = CounterView (ComponentView "counter")
   data Model "counter" = CounterModel Int
   data Signal "counter" = Clicked
 
@@ -30,9 +29,7 @@ instance Component UI "counter" where
 
   setup = do
     cp <- liftIO $ new (CounterModel 0)
-    return $ CounterView cp
-
-  getComponentView (CounterView x) = x
+    return cp
 
   getGraphical (CounterModel n) = do
     return $ graphics
