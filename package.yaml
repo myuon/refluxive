@@ -21,6 +21,8 @@ default-extensions:
 - LambdaCase
 - TemplateHaskell
 - MultiParamTypeClasses
+- TypeApplications
+- OverloadedLabels
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package

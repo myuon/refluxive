@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, OverloadedLabels, TypeApplications #-}
+{-# LANGUAGE OverloadedStrings #-}
 module HelloWorld where
 
 import qualified SDL as SDL
