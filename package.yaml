@@ -1,6 +1,6 @@
-name:                lefrect
+name:                refluxive
 version:             0.1.0.0
-github:              myuon/lefrect
+github:              myuon/refluxive
 license:             MIT
 author:              myuon
 maintainer:          ioi.joi.koi.loi@gmail.com
@@ -31,7 +31,7 @@ default-extensions:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/myuon/lefrect#readme>
+description:         Please see the README on GitHub at <https://github.com/myuon/refluxive#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -60,7 +60,7 @@ executables:
     - -with-rtsopts=-N
     - -main-is HelloWorld
     dependencies:
-    - lefrect
+    - refluxive
   example-todomvc:
     main:                TodoMVC.hs
     source-dirs:         example
@@ -70,6 +70,6 @@ executables:
     - -with-rtsopts=-N
     - -main-is TodoMVC
     dependencies:
-    - lefrect
+    - refluxive
 
 

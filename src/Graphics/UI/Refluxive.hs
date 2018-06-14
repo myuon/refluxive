@@ -1,8 +1,8 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
-module Graphics.UI.Lefrect
-  ( module Graphics.UI.Lefrect.Graphical
-  , module Graphics.UI.Lefrect.Component
+module Graphics.UI.Refluxive
+  ( module Graphics.UI.Refluxive.Graphical
+  , module Graphics.UI.Refluxive.Component
   , Signal(..)
 
   , UI
@@ -28,8 +28,8 @@ import qualified Data.IntSet as S
 import qualified Data.Map as M
 import Linear.V4
 import Unsafe.Coerce
-import Graphics.UI.Lefrect.Graphical
-import Graphics.UI.Lefrect.Component
+import Graphics.UI.Refluxive.Graphical
+import Graphics.UI.Refluxive.Component
 
 data Registry a
   = Registry

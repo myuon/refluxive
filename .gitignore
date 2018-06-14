@@ -24,4 +24,4 @@ cabal.project.local~
 .ghc.environment.*
 
 
-lefrect.cabal
+*.cabal

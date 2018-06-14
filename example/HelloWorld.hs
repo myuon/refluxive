@@ -7,7 +7,7 @@ import Control.Monad
 import Control.Monad.State
 import Data.Extensible
 import Data.Ix (inRange)
-import Graphics.UI.Lefrect
+import Graphics.UI.Refluxive
 
 instance Component UI "counter" where
   data Model "counter" = CounterModel Int

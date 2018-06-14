@@ -1,6 +1,6 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE ExistentialQuantification #-}
-module Graphics.UI.Lefrect.Component
+module Graphics.UI.Refluxive.Component
   ( Component(..)
   , ComponentView(..)
   , Watcher(..)
@@ -11,7 +11,7 @@ module Graphics.UI.Lefrect.Component
 
 import qualified SDL as SDL
 import SDL.Vect
-import Graphics.UI.Lefrect.Graphical
+import Graphics.UI.Refluxive.Graphical
 import Control.Monad.State
 import Data.IORef
 import GHC.TypeLits (symbolVal, KnownSymbol)

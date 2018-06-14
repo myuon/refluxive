@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeOperators, OverloadedLabels, FlexibleContexts, PolyKinds #-}
-module Graphics.UI.Lefrect.Graphical
+module Graphics.UI.Refluxive.Graphical
   ( Graphical
 
   , empty

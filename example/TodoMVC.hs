@@ -7,7 +7,7 @@ import Control.Monad
 import Control.Monad.State
 import Data.Extensible
 import qualified Data.Text as T
-import Graphics.UI.Lefrect
+import Graphics.UI.Refluxive
 
 instance Component UI "text-form" where
   data Model "text-form" = TextformModel T.Text
