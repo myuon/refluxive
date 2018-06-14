@@ -10,6 +10,7 @@ module Graphics.UI.Lefrect.Graphical
   , colored
   , translate
   , graphics
+  , clip
 
   , render
   ) where
@@ -44,6 +45,7 @@ data Graphical
   | Translate SDL.Pos Graphical
   | Graphics [Graphical]
   | Text T.Text
+  | Clip SDL.Pos Graphical
 
 data RenderState
   = RenderState
@@ -83,8 +85,16 @@ render mfont renderer = go defRenderState where
     SDL.textureBlendMode texture SDL.$= SDL.BlendAlphaBlend
     tinfo <- SDL.queryTexture texture
     let size = V2 (SDL.textureWidth tinfo) (SDL.textureHeight tinfo)
-    SDL.copy renderer texture (Just $ SDL.Rectangle (SDL.P 0) size) (Just $ SDL.Rectangle (SDL.P (coordinate st)) size)
+    SDL.copy renderer texture Nothing (Just $ SDL.Rectangle (SDL.P (coordinate st)) size)
     SDL.freeSurface surface
+  go st (Clip size g) = do
+    texture <- SDL.createTexture renderer SDL.RGBA8888 SDL.TextureAccessTarget size
+    SDL.rendererRenderTarget renderer SDL.$= Just texture
+    SDL.rendererDrawColor renderer SDL.$= SDL.V4 255 255 255 255
+    SDL.clear renderer
+    go (st { coordinate = SDL.V2 0 0 }) g
+    SDL.rendererRenderTarget renderer SDL.$= Nothing
+    SDL.copy renderer texture Nothing (Just $ SDL.Rectangle (SDL.P (coordinate st)) size)
 
 empty :: Graphical
 empty = Empty
@@ -112,4 +122,7 @@ translate = Translate
 
 graphics :: [Graphical] -> Graphical
 graphics = Graphics
+
+clip :: SDL.Pos -> Graphical -> Graphical
+clip = Clip
 
