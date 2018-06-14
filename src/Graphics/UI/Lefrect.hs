@@ -8,11 +8,11 @@ module Graphics.UI.Lefrect
   , UI
   , runUI
   , register
-  , clear
   , emit
   , watch
   , mainloop
   , rawGraphical
+  , setClearColor
   ) where
 
 import qualified SDL as SDL
@@ -97,39 +97,48 @@ data UIState
   , _eventStream :: EventStream
   , _distributer :: M.Map String [SomeCallback]
   , _font :: Maybe SDLF.Font
+  , _clearColor :: SDLF.Color
   }
 
 makeLenses ''UIState
+
+instance MonadState UIState UI where
+  state = UI . state
 
 runUI :: UI () -> IO ()
 runUI m = do
   SDL.initializeAll
   SDLF.initialize
 
-  evalStateT (unpackUI m) =<< UIState
+  evalStateT (unpackUI $ initialize >> m) =<< UIState
     <$> ((\w -> SDL.createRenderer w (-1) SDL.defaultRenderer) =<< SDL.createWindow "window" SDL.defaultWindow)
     <*> newRegistry
     <*> newEventStream
     <*> pure M.empty
     <*> fmap Just (SDLF.load "/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf" 20)
+    <*> pure (V4 255 255 255 255)
+
+  where
+    initialize :: UI ()
+    initialize = do
+      use clearColor >>= setClearColor
+
+setClearColor :: SDLF.Color -> UI ()
+setClearColor c = do
+  r <- use renderer
+  clearColor .= c
+  SDL.rendererDrawColor r SDL.$= c
 
 register :: Component UI a => ComponentView a -> UI ()
 register cp = do
-  UI $ do
-    reg <- use registry
-    (_, reg') <- liftIO $ pushRegistry (uid cp) (SomeComponent cp) reg
-    registry .= reg'
+  reg <- use registry
+  (_, reg') <- liftIO $ pushRegistry (uid cp) (SomeComponent cp) reg
+  registry .= reg'
 
   mapM_ addWatchSignal $ watcher cp
 
-clear :: V4 Word8 -> UI ()
-clear c = UI $ do
-  r <- use renderer
-  SDL.rendererDrawColor r SDL.$= c
-  SDL.clear r
-
 emit :: Component UI a => Signal a -> UI ()
-emit s = UI $ use eventStream >>= \es -> liftIO (pushEvent es s)
+emit s = use eventStream >>= \es -> liftIO (pushEvent es s)
 
 mainloop :: UI ()
 mainloop = do
@@ -139,30 +148,31 @@ mainloop = do
     _ -> False
 
   -- pour events into stream
-  es <- UI $ use eventStream
-  UI $ liftIO $ mapM_ (pushEvent es . BuiltInSignal) events
+  es <- use eventStream
+  liftIO $ mapM_ (pushEvent es . BuiltInSignal) events
 
   -- clear
-  clear (V4 30 100 200 255)
+  use renderer >>= SDL.clear
 
   -- render all components
-  reg <- UI $ use registry
+  reg <- use registry
   forM_ (S.elems $ reg ^. keys) $ \i -> do
     SomeComponent cp <- liftIO $ V.read (reg ^. content) i
 
-    r <- UI $ use renderer
-    f <- UI $ use font
-    view cp >>= render f r
+    r <- use renderer
+    f <- use font
+    c <- use clearColor
+    view cp >>= render c f r
 
   -- commit view changes
-  SDL.present =<< UI (use renderer)
+  use renderer >>= SDL.present
 
   -- event handling
-  events <- UI $ pullEvent =<< use eventStream
+  events <- pullEvent =<< use eventStream
   case events of
     Just (src, SomeSignal signal) -> do
-      callbacks <- UI $ fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
-      r <- UI $ use registry
+      callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
+      r <- use registry
 
       forM_ callbacks $ \(SomeCallback tgt cb) -> do
         modifyMRegistryByUID tgt r $ \(SomeComponent cp) -> do
@@ -180,7 +190,7 @@ watch :: (Component UI src, Component UI tgt) => String -> (Signal src -> StateT
 watch = Watcher
 
 addWatchSignal :: Component UI tgt => Watcher UI tgt -> UI ()
-addWatchSignal (w@(Watcher name callback)) = UI $ do
+addWatchSignal (w@(Watcher name callback)) = do
   d <- use distributer
   when (name `M.notMember` d) $ distributer %= M.insert name []
   distributer . ix name %= (:) (SomeCallback (getWatcherTgtUID w) callback)

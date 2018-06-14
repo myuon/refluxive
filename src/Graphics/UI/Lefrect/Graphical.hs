@@ -57,13 +57,13 @@ data RenderState
 defRenderState :: RenderState
 defRenderState
   = RenderState
-  { color = SDL.V4 255 255 255 255
+  { color = SDL.V4 0 0 0 255
   , coordinate = SDL.V2 0 0
   , scaler = SDL.V2 1 1
   }
 
-render :: MonadIO m => Maybe SDLF.Font -> SDL.Renderer -> Graphical -> m ()
-render mfont renderer = go defRenderState where
+render :: MonadIO m => SDLF.Color -> Maybe SDLF.Font -> SDL.Renderer -> Graphical -> m ()
+render clearColor mfont renderer = go defRenderState where
   go :: MonadIO m => RenderState -> Graphical -> m ()
   go st Empty = return ()
   go st (GridLayout s g) = go (st { scaler = s }) g
@@ -90,7 +90,7 @@ render mfont renderer = go defRenderState where
   go st (Clip size g) = do
     texture <- SDL.createTexture renderer SDL.RGBA8888 SDL.TextureAccessTarget size
     SDL.rendererRenderTarget renderer SDL.$= Just texture
-    SDL.rendererDrawColor renderer SDL.$= SDL.V4 255 255 255 255
+    SDL.rendererDrawColor renderer SDL.$= clearColor
     SDL.clear renderer
     go (st { coordinate = SDL.V2 0 0 }) g
     SDL.rendererRenderTarget renderer SDL.$= Nothing

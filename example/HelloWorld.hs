@@ -38,6 +38,8 @@ instance Component UI "counter" where
 
 main :: IO ()
 main = runUI $ do
+  setClearColor (V4 240 240 240 255)
+
   counter <- setup @_ @"counter"
   register counter
 
