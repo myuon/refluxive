@@ -61,5 +61,5 @@ main = runUI $ do
     , clip (V2 200 40) $ colored (V4 0 0 0 255) $ text "hey youyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
     ]
 
-  mainloop
+  mainloop All
 

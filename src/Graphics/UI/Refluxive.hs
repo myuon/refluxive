@@ -4,6 +4,7 @@ module Graphics.UI.Refluxive
   ( module Graphics.UI.Refluxive.Graphical
   , module Graphics.UI.Refluxive.Component
   , Signal(..)
+  , Root(..)
 
   , UI
   , runUI
@@ -135,13 +136,18 @@ register cp = do
   (_, reg') <- liftIO $ pushRegistry (uid cp) (SomeComponent cp) reg
   registry .= reg'
 
-  mapM_ addWatchSignal $ watcher cp
+  listen cp
+
+listen :: Component UI a => ComponentView a -> UI ()
+listen cp = mapM_ addWatchSignal $ watcher cp
 
 emit :: Component UI a => Signal a -> UI ()
 emit s = use eventStream >>= \es -> liftIO (pushEvent es s)
 
-mainloop :: UI ()
-mainloop = do
+data Root = All | RootUIDs [String]
+
+mainloop :: Root -> UI ()
+mainloop root = do
   events <- SDL.pollEvents
   keyQuit <- return $ flip any events $ \ev -> case SDL.eventPayload ev of
     SDL.KeyboardEvent (SDL.KeyboardEventData _ _ _ (SDL.Keysym SDL.ScancodeQ _ _)) -> True
@@ -155,8 +161,14 @@ mainloop = do
   use renderer >>= SDL.clear
 
   -- render all components
-  reg <- use registry
-  forM_ (S.elems $ reg ^. keys) $ \i -> do
+  keys <- do
+    reg <- use registry
+    return $ case root of
+      All -> S.elems $ reg ^. keys
+      RootUIDs xs -> fmap ((reg ^. uids) M.!) xs
+
+  forM_ keys $ \i -> do
+    reg <- use registry
     SomeComponent cp <- liftIO $ V.read (reg ^. content) i
 
     r <- use renderer
@@ -181,7 +193,7 @@ mainloop = do
     Nothing -> return ()
 
   -- quit?
-  unless keyQuit mainloop
+  unless keyQuit $ mainloop root
 
   SDLF.quit
   SDL.quit
