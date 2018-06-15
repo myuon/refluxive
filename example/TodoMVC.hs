@@ -11,7 +11,7 @@ import Graphics.UI.Refluxive
 
 instance Component UI "text-form" where
   data Model "text-form" = TextformModel T.Text
-  data Signal "text-form" = CreateItem
+  data Signal "text-form" = CreateItem T.Text
 
   watcher _ =
     [ watch "builtin" $ \case
@@ -20,26 +20,28 @@ instance Component UI "text-form" where
         BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeBackspace _)))) -> do
           modify $ (\(TextformModel t) -> TextformModel $ if T.null t then t else T.init t)
         BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeReturn _)))) -> do
-          lift $ emit CreateItem
+          TextformModel item <- get
+          lift $ emit $ CreateItem item
+          put $ TextformModel ""
         _ -> return ()
     ]
 
-  setup = liftIO $ new (TextformModel "")
+  setup = new (TextformModel "")
 
   getGraphical (TextformModel txt) =
-    clip (V2 200 100) $ graphics
+    return $ clip (V2 200 100) $ graphics
       [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 200 100)
       , translate (V2 20 20) $ text $ txt `T.append` "■"
       ]
 
 instance Component UI "item-list" where
   data Model "item-list" = ItemListModel [T.Text]
-  data Signal "item-list"
+  data Signal "item-list" = AddItem T.Text
 
-  setup = liftIO $ new $ ItemListModel ["item 1", "item 2"]
+  setup = new $ ItemListModel ["----"]
 
   getGraphical (ItemListModel xs) =
-    translate (V2 300 100) $ graphics $
+    return $ graphics $
       fmap (\(i,x) -> translate (V2 0 (i * 30)) $ text x) $ zip [0..] xs
 
 instance Component UI "app" where
@@ -48,6 +50,14 @@ instance Component UI "app" where
     , itemlist :: ComponentView "item-list"
     }
 
+  watcher _ =
+    [ watch "text-form" $ \case
+        CreateItem item -> do
+          model <- get
+          lift $ operateModel (itemlist model) $ do
+            modify $ \(ItemListModel xs) -> ItemListModel (item : xs)
+    ]
+
   setup = do
     textform <- setup @_ @"text-form"
     itemlist <- setup @_ @"item-list"
@@ -55,15 +65,18 @@ instance Component UI "app" where
     register textform
     register itemlist
 
-    liftIO $ new $ AppModel
+    new $ AppModel
       { textform = textform
       , itemlist = itemlist
       }
 
-  getGraphical model =
-    translate (V2 50 50) $ graphics $
-      [ view $ textform model
-      , view $ itemlist model
+  getGraphical model = do
+    textformView <- view $ textform model
+    itemlistView <- view $ itemlist model
+
+    return $ translate (V2 50 50) $ graphics $
+      [ textformView
+      , translate (V2 0 100) itemlistView
       ]
 
 main :: IO ()

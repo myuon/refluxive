@@ -27,12 +27,10 @@ instance Component UI "counter" where
           return ()
     ]
 
-  setup = do
-    cp <- liftIO $ new (CounterModel 0)
-    return cp
+  setup = new (CounterModel 0)
 
   getGraphical (CounterModel n) = do
-    graphics
+    return $ graphics
       [ colored (V4 100 200 255 255) $ rectangle (V2 0 0) (V2 200 100)
       ]
 
