@@ -5,8 +5,6 @@ module Graphics.UI.Refluxive.Component
   , ComponentView(..)
   , Watcher(..)
   , getWatcherTgtUID
-  , new
-  , view
   ) where
 
 import qualified SDL as SDL
@@ -39,14 +37,6 @@ class KnownSymbol a => Component m a | a -> m where
   watcher _ = []
 
   setup :: MonadIO m => m (ComponentView a)
-  getGraphical :: MonadIO m => Model a -> Graphical
+  getGraphical :: MonadIO m => Model a -> m Graphical
 
-new :: Model a -> IO (ComponentView a)
-new model = do
-  return $ ComponentView
-    { model = model
-    }
-
-view :: (MonadIO m, Component m a) => ComponentView a -> Graphical
-view cp = getGraphical (model cp)
 

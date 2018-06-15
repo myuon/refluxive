@@ -14,6 +14,10 @@ module Graphics.UI.Refluxive
   , mainloop
   , rawGraphical
   , setClearColor
+
+  , new
+  , view
+  , operateModel
   ) where
 
 import qualified SDL as SDL
@@ -121,8 +125,7 @@ runUI m = do
 
   where
     initialize :: UI ()
-    initialize = do
-      use clearColor >>= setClearColor
+    initialize = use clearColor >>= setClearColor
 
 setClearColor :: SDLF.Color -> UI ()
 setClearColor c = do
@@ -174,7 +177,7 @@ mainloop root = do
     r <- use renderer
     f <- use font
     c <- use clearColor
-    render c f r (view cp)
+    render c f r =<< view cp
 
   -- commit view changes
   use renderer >>= SDL.present
@@ -184,8 +187,8 @@ mainloop root = do
   case events of
     Just (src, SomeSignal signal) -> do
       callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
-      r <- use registry
 
+      r <- use registry
       forM_ callbacks $ \(SomeCallback tgt cb) -> do
         modifyMRegistryByUID tgt r $ \(SomeComponent cp) -> do
           model' <- flip execStateT (model cp) $ unsafeCoerce cb signal
@@ -215,12 +218,30 @@ instance Component UI "raw" where
   data Signal "raw"
 
   setup = do
-    cp <- liftIO $ new $ RawModel empty
+    cp <- new $ RawModel empty
     return cp
 
-  getGraphical (RawModel g) = g
+  getGraphical (RawModel g) = return g
 
 rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
 rawGraphical cp g = cp { model = RawModel g }
 
+new :: Model a -> UI (ComponentView a)
+new model = do
+  return $ ComponentView
+    { model = model
+    }
+
+view :: (Component UI a) => ComponentView a -> UI Graphical
+view cp = do
+  r <- use registry
+  SomeComponent cp <- getRegistryByUID (uid cp) r
+  getGraphical (model cp)
+
+operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI () -> UI ()
+operateModel cp f = do
+  r <- use registry
+  modifyMRegistryByUID (uid cp) r $ \(SomeComponent cp) -> do
+    model' <- flip execStateT (model cp) $ unsafeCoerce f
+    return $ SomeComponent $ cp { model = model' }
 
