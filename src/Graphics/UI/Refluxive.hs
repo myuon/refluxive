@@ -2,7 +2,11 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
 module Graphics.UI.Refluxive
   ( module Graphics.UI.Refluxive.Graphical
-  , module Graphics.UI.Refluxive.Component
+
+  , Component(..)
+  , ComponentView
+  , Watcher
+
   , Signal(..)
   , Root(..)
 
