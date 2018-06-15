@@ -174,7 +174,7 @@ mainloop root = do
     r <- use renderer
     f <- use font
     c <- use clearColor
-    view cp >>= render c f r
+    render c f r (view cp)
 
   -- commit view changes
   use renderer >>= SDL.present
@@ -191,6 +191,9 @@ mainloop root = do
           model' <- flip execStateT (model cp) $ unsafeCoerce cb signal
           return $ SomeComponent $ cp { model = model' }
     Nothing -> return ()
+
+  -- wait
+  SDL.delay 33
 
   -- quit?
   unless keyQuit $ mainloop root
@@ -215,7 +218,7 @@ instance Component UI "raw" where
     cp <- liftIO $ new $ RawModel empty
     return cp
 
-  getGraphical (RawModel g) = return g
+  getGraphical (RawModel g) = g
 
 rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
 rawGraphical cp g = cp { model = RawModel g }

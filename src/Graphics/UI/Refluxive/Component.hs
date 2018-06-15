@@ -39,7 +39,7 @@ class KnownSymbol a => Component m a | a -> m where
   watcher _ = []
 
   setup :: MonadIO m => m (ComponentView a)
-  getGraphical :: MonadIO m => Model a -> m Graphical
+  getGraphical :: MonadIO m => Model a -> Graphical
 
 new :: Model a -> IO (ComponentView a)
 new model = do
@@ -47,6 +47,6 @@ new model = do
     { model = model
     }
 
-view :: (MonadIO m, Component m a) => ComponentView a -> m Graphical
+view :: (MonadIO m, Component m a) => ComponentView a -> Graphical
 view cp = getGraphical (model cp)
 

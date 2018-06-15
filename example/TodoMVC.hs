@@ -26,8 +26,8 @@ instance Component UI "text-form" where
 
   setup = liftIO $ new (TextformModel "")
 
-  getGraphical (TextformModel txt) = do
-    return $ clip (V2 200 100) $ graphics
+  getGraphical (TextformModel txt) =
+    clip (V2 200 100) $ graphics
       [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 200 100)
       , translate (V2 20 20) $ text $ txt `T.append` "■"
       ]
@@ -38,8 +38,8 @@ instance Component UI "item-list" where
 
   setup = liftIO $ new $ ItemListModel ["item 1", "item 2"]
 
-  getGraphical (ItemListModel xs) = do
-    return $ translate (V2 300 100) $ graphics $
+  getGraphical (ItemListModel xs) =
+    translate (V2 300 100) $ graphics $
       fmap (\(i,x) -> translate (V2 0 (i * 30)) $ text x) $ zip [0..] xs
 
 instance Component UI "app" where
@@ -60,13 +60,10 @@ instance Component UI "app" where
       , itemlist = itemlist
       }
 
-  getGraphical model = do
-    textformView <- view $ textform model
-    itemlistView <- view $ itemlist model
-
-    return $ translate (V2 50 50) $ graphics $
-      [ textformView
-      , itemlistView
+  getGraphical model =
+    translate (V2 50 50) $ graphics $
+      [ view $ textform model
+      , view $ itemlist model
       ]
 
 main :: IO ()
