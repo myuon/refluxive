@@ -34,7 +34,6 @@ class KnownSymbol a => Component m a | a -> m where {
     data family Signal a;
 }
 uid :: Component m a => proxy a -> String
-watcher :: Component m a => ComponentView a -> [Watcher m a]
 newModel :: (Component m a, MonadIO m) => ModelParam a -> m (Model a)
 initComponent :: (Component m a, MonadIO m) => ComponentView a -> m ()
 getGraphical :: (Component m a, MonadIO m) => Model a -> m Graphical
@@ -54,7 +53,6 @@ class KnownSymbol a => Component m a | a -> m where {
     data family Signal a;
 }
 uid :: Component m a => proxy a -> String
-watcher :: Component m a => ComponentView a -> [Watcher m a]
 newModel :: (Component m a, MonadIO m) => ModelParam a -> m (Model a)
 initComponent :: (Component m a, MonadIO m) => ComponentView a -> m ()
 getGraphical :: (Component m a, MonadIO m) => Model a -> m Graphical
