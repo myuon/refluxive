@@ -76,6 +76,10 @@ instance Component UI "app" where
           model <- get
           lift $ operateModel (itemlist model) $ do
             modify $ \(ItemListModel xs) -> ItemListModel (item : xs)
+    , watch "builtin" $ \case
+        BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeEscape _)))) ->
+          lift quit
+        _ -> return ()
     ]
 
   setup = do

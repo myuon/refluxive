@@ -18,6 +18,7 @@ module Graphics.UI.Refluxive
   , mainloop
   , rawGraphical
   , setClearColor
+  , quit
 
   , new
   , view
@@ -97,9 +98,6 @@ makeEvent s = (uid s, SomeSignal s)
 pullEvent :: MonadIO m => EventStream -> m (Maybe (String, SomeSignal))
 pullEvent stream = liftIO $ tryRead =<< tryReadChan (snd $ getEventStream stream)
 
-instance Component UI "builtin" where
-  data Signal "builtin" = BuiltInSignal SDL.Event
-
 newtype UI a = UI { unpackUI :: StateT UIState IO a } deriving (Functor, Applicative, Monad, MonadIO)
 data SomeComponent = forall a. Component UI a => SomeComponent (ComponentView a)
 data SomeCallback = forall a b. (Component UI a, Component UI b) => SomeCallback String (Signal a -> StateT (Model b) UI ())
@@ -112,9 +110,13 @@ data UIState
   , _distributer :: M.Map String [SomeCallback]
   , _font :: Maybe SDLF.Font
   , _clearColor :: SDLF.Color
+  , _isQuit :: Bool
   }
 
 makeLenses ''UIState
+
+instance Component UI "builtin" where
+  data Signal "builtin" = BuiltInSignal SDL.Event
 
 instance MonadState UIState UI where
   state = UI . state
@@ -131,6 +133,7 @@ runUI m = do
     <*> pure M.empty
     <*> fmap Just (SDLF.load "/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf" 20)
     <*> pure (V4 255 255 255 255)
+    <*> pure False
 
 setClearColor :: SDLF.Color -> UI ()
 setClearColor c = do
@@ -159,27 +162,28 @@ clear = do
   SDL.rendererDrawColor r SDL.$= c
   SDL.clear r
 
-data Root = All | RootUIDs [String]
+quit :: UI ()
+quit = isQuit .= True
 
-quit :: IO ()
-quit = do
-  SDLF.quit
-  SDL.quit
+data Root = All | RootUIDs [String]
 
 initialize :: UI ()
 initialize = do
   use clearColor >>= setClearColor
 
   es <- use eventStream
-  SDL.addEventWatch $ \case
-    SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ _ _ (SDL.Keysym SDL.ScancodeEscape _ _))) -> quit
-    e -> pushEvent es (BuiltInSignal e)
+  SDL.addEventWatch $ pushEvent es . BuiltInSignal
 
   return ()
 
 mainloop :: Root -> UI ()
 mainloop root = do
-  SDL.pumpEvents
+  ev <- SDL.pollEvent
+  case ev of
+    Just ev -> do
+      es <- use eventStream
+      pushEvent es $ BuiltInSignal ev
+    _ -> return ()
 
   -- clear
   clear
@@ -207,6 +211,7 @@ mainloop root = do
   events <- pullEvent =<< use eventStream
   case events of
     Just (src, SomeSignal signal) -> do
+      liftIO $ print "pullEvent"
       callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
 
       r <- use registry
@@ -219,7 +224,11 @@ mainloop root = do
   -- wait
   SDL.delay 33
 
-  mainloop root
+  q <- use isQuit
+  unless q $ mainloop root
+
+  SDLF.quit
+  SDL.quit
 
 watch :: (Component UI src, Component UI tgt) => String -> (Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
 watch = Watcher
