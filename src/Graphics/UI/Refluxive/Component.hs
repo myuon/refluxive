@@ -4,7 +4,7 @@ module Graphics.UI.Refluxive.Component
   ( Component(..)
   , ComponentView(..)
   , Watcher(..)
-  , getWatcherTgtUID
+  , getModel
   ) where
 
 import qualified SDL as SDL
@@ -16,15 +16,16 @@ import GHC.TypeLits (symbolVal, KnownSymbol)
 
 type EventStream a = IORef [a]
 
-data Watcher m tgt = forall src. (Component m src, Component m tgt) => Watcher String (Signal src -> StateT (Model tgt) m ())
-
-getWatcherTgtUID :: Component m tgt => Watcher m tgt -> String
-getWatcherTgtUID w = uid w
+data Watcher m tgt = forall src. (Component m src, Component m tgt) => Watcher (ComponentView src) (Signal src -> StateT (Model tgt) m ())
 
 data ComponentView a
   = ComponentView
   { model :: Model a
+  , name :: String
   }
+
+getModel :: ComponentView a -> Model a
+getModel cp = model cp
 
 class KnownSymbol a => Component m a | a -> m where
   type family ModelParam a
@@ -34,10 +35,14 @@ class KnownSymbol a => Component m a | a -> m where
   uid :: proxy a -> String
   uid = symbolVal
 
-  watcher :: proxy a -> [Watcher m a]
+  watcher :: ComponentView a -> [Watcher m a]
   watcher _ = []
 
   newModel :: MonadIO m => ModelParam a -> m (Model a)
+
+  initComponent :: MonadIO m => ComponentView a -> m ()
+  initComponent _ = return ()
+
   getGraphical :: MonadIO m => Model a -> m Graphical
 
 

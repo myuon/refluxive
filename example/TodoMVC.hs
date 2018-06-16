@@ -18,7 +18,8 @@ instance Component UI "text-form" where
     }
   data Signal "text-form" = CreateItem T.Text
 
-  watcher _ =
+{-
+  watcher self =
     [ watch "builtin" $ \case
         BuiltInSignal (SDL.Event _ (SDL.TextInputEvent (SDL.TextInputEventData _ txt))) -> do
           modify $ (\model -> model { content = content model `T.append` txt })
@@ -26,12 +27,27 @@ instance Component UI "text-form" where
           modify $ (\model -> model { content = if T.null (content model) then content model else T.init (content model) })
         BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeReturn _)))) -> do
           model <- get
-          lift $ emit $ CreateItem (content model)
+          lift $ emit self $ CreateItem (content model)
           put $ model { content = "" }
         _ -> return ()
     ]
+-}
 
   newModel p = return (TextformModel "" (p ^. #placeholder))
+
+  initComponent self = do
+    b <- use builtIn
+
+    addWatchSignal self $ watch b $ \case
+      BuiltInSignal (SDL.Event _ (SDL.TextInputEvent (SDL.TextInputEventData _ txt))) -> do
+        modify $ (\model -> model { content = content model `T.append` txt })
+      BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeBackspace _)))) -> do
+        modify $ (\model -> model { content = if T.null (content model) then content model else T.init (content model) })
+      BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeReturn _)))) -> do
+        model <- get
+        lift $ emit self $ CreateItem (content model)
+        put $ model { content = "" }
+      _ -> return ()
 
   getGraphical (TextformModel txt placeholder) =
     return $ clip (V2 300 50) $ graphics
@@ -47,14 +63,23 @@ instance Component UI "button" where
   data Model "button" = ButtonModel Bool T.Text
   data Signal "button" = Clicked | Hover
 
+{-
   watcher _ =
     [ watch "builtin" $ \case
         BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
           liftIO $ print v
         _ -> return ()
     ]
-
+-}
   newModel param = return $ ButtonModel False (param ^. #label)
+
+  initComponent self = do
+    b <- use builtIn
+
+    addWatchSignal self $ watch b $ \case
+      BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
+        liftIO $ print v
+      _ -> return ()
 
   getGraphical (ButtonModel b txt) =
     return $ graphics
@@ -100,6 +125,7 @@ instance Component UI "app" where
     , button :: ComponentView "button"
     }
 
+{-
   watcher _ =
     [ watch "text-form" $ \case
         CreateItem item -> do
@@ -114,6 +140,7 @@ instance Component UI "app" where
           lift quit
         _ -> return ()
     ]
+-}
 
   newModel () = do
     textform <- new @"text-form" (#placeholder @= "What needs to be done?" <: nil)
@@ -129,6 +156,24 @@ instance Component UI "app" where
       , itemlist = itemlist
       , button = button
       }
+
+  initComponent self = do
+    b <- use builtIn
+    let model = getModel self
+
+    addWatchSignal self $ watch (textform model) $ \case
+      CreateItem item -> do
+        model <- get
+        lift $ operateModel (itemlist model) $ do
+          checkbox <- lift $ new @"checkbox" ()
+          lift $ register checkbox
+
+          modify $ \(ItemListModel xs) -> ItemListModel ((checkbox, item) : xs)
+
+    addWatchSignal self $ watch b $ \case
+        BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeEscape _)))) ->
+          lift quit
+        _ -> return ()
 
   getGraphical model = do
     textformView <- view $ textform model
@@ -148,5 +193,5 @@ main = runUI $ do
   app <- new @"app" ()
   register app
 
-  mainloop $ RootUIDs [uid app]
+  mainloop $ [asRoot app]
 

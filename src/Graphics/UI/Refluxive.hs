@@ -6,18 +6,21 @@ module Graphics.UI.Refluxive
   , Component(..)
   , ComponentView
   , Watcher
+  , getModel
 
   , Signal(..)
-  , Root(..)
+  , builtIn
 
   , UI
   , runUI
   , register
   , emit
   , watch
+  , asRoot
   , mainloop
   , rawGraphical
   , setClearColor
+  , addWatchSignal
   , quit
 
   , fromModel
@@ -33,6 +36,7 @@ import Control.Lens hiding (view)
 import Control.Monad.State
 import Control.Monad.Cont
 import Data.Word (Word8)
+import Data.Unique
 import qualified Data.Vector.Mutable as V
 import qualified Data.IntSet as S
 import qualified Data.Map as M
@@ -87,11 +91,11 @@ newtype EventStream = EventStream { getEventStream :: MVar [(String, SomeSignal)
 newEventStream :: MonadIO m => m EventStream
 newEventStream = fmap EventStream $ liftIO $ newMVar []
 
-pushEvent :: (Component UI a, MonadIO m) => EventStream -> Signal a -> m ()
-pushEvent stream s = liftIO $ modifyMVar_ (getEventStream stream) $ return . (makeEvent s :)
+pushEvent :: (Component UI a, MonadIO m) => EventStream -> ComponentView a -> Signal a -> m ()
+pushEvent stream cp s = liftIO $ modifyMVar_ (getEventStream stream) $ return . (makeEvent cp s :)
 
-makeEvent :: Component UI a => Signal a -> (String, SomeSignal)
-makeEvent s = (uid s, SomeSignal s)
+makeEvent :: Component UI a => ComponentView a -> Signal a -> (String, SomeSignal)
+makeEvent cp s = (name cp, SomeSignal s)
 
 pullEvents :: MonadIO m => EventStream -> m [(String, SomeSignal)]
 pullEvents stream = liftIO $ fmap reverse $ swapMVar (getEventStream stream) []
@@ -109,12 +113,18 @@ data UIState
   , _font :: Maybe SDLF.Font
   , _clearColor :: SDLF.Color
   , _isQuit :: Bool
+  , _builtIn' :: Maybe (ComponentView "builtin")
   }
 
 makeLenses ''UIState
 
 instance Component UI "builtin" where
+  type ModelParam "builtin" = ()
+  data Model "builtin" = BuiltInModel
   data Signal "builtin" = BuiltInSignal SDL.Event
+
+  newModel () = return BuiltInModel
+  getGraphical = error "unimplemented"
 
 instance MonadState UIState UI where
   state = UI . state
@@ -132,6 +142,7 @@ runUI m = do
     <*> fmap Just (SDLF.load "/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf" 20)
     <*> pure (V4 255 255 255 255)
     <*> pure False
+    <*> pure Nothing
 
 setClearColor :: SDLF.Color -> UI ()
 setClearColor c = do
@@ -142,16 +153,16 @@ setClearColor c = do
 register :: Component UI a => ComponentView a -> UI ()
 register cp = do
   reg <- use registry
-  (_, reg') <- liftIO $ pushRegistry (uid cp) (SomeComponent cp) reg
+  (_, reg') <- liftIO $ pushRegistry (name cp) (SomeComponent cp) reg
   registry .= reg'
 
   listen cp
 
 listen :: Component UI a => ComponentView a -> UI ()
-listen cp = mapM_ addWatchSignal $ watcher cp
+listen cp = mapM_ (addWatchSignal cp) $ watcher cp
 
-emit :: Component UI a => Signal a -> UI ()
-emit s = use eventStream >>= \es -> liftIO (pushEvent es s)
+emit :: Component UI a => ComponentView a -> Signal a -> UI ()
+emit cp s = use eventStream >>= \es -> liftIO (pushEvent es cp s)
 
 clear :: UI ()
 clear = do
@@ -163,31 +174,35 @@ clear = do
 quit :: UI ()
 quit = isQuit .= True
 
-data Root = All | RootUIDs [String]
-
 initialize :: UI ()
-initialize = use clearColor >>= setClearColor
+initialize = do
+  use clearColor >>= setClearColor
+  b <- new @"builtin" ()
+  builtIn' .= Just b
+  register b
 
-mainloop :: Root -> UI ()
+asRoot :: Component UI a => ComponentView a -> SomeComponent
+asRoot = SomeComponent
+
+builtIn :: Lens' UIState (ComponentView "builtin")
+builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
+
+mainloop :: [SomeComponent] -> UI ()
 mainloop root = do
   ev <- SDL.pollEvent
   case ev of
     Just ev -> do
       es <- use eventStream
-      pushEvent es $ BuiltInSignal ev
+      Just b <- use builtIn'
+      pushEvent es b $ BuiltInSignal ev
     _ -> return ()
 
   -- clear
   clear
 
-  -- render all components
-  keys <- do
-    reg <- use registry
-    return $ case root of
-      All -> S.elems $ reg ^. keys
-      RootUIDs xs -> fmap ((reg ^. uids) M.!) xs
-
-  forM_ keys $ \i -> do
+  -- render root component
+  reg <- use registry
+  forM_ (fmap (\(SomeComponent cp) -> (reg ^. uids) M.! name cp) root) $ \i -> do
     reg <- use registry
     SomeComponent cp <- liftIO $ V.read (reg ^. content) i
 
@@ -218,14 +233,15 @@ mainloop root = do
   SDLF.quit
   SDL.quit
 
-watch :: (Component UI src, Component UI tgt) => String -> (Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
+watch :: (Component UI src, Component UI tgt) => ComponentView src -> (Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
 watch = Watcher
 
-addWatchSignal :: Component UI tgt => Watcher UI tgt -> UI ()
-addWatchSignal (w@(Watcher name callback)) = do
+addWatchSignal :: Component UI tgt => ComponentView tgt -> Watcher UI tgt -> UI ()
+addWatchSignal cp (w@(Watcher srcCp callback)) = do
+  let src = name srcCp
   d <- use distributer
-  when (name `M.notMember` d) $ distributer %= M.insert name []
-  distributer . ix name %= (:) (SomeCallback (getWatcherTgtUID w) callback)
+  when (src `M.notMember` d) $ distributer %= M.insert src []
+  distributer . ix src %= (:) (SomeCallback (name cp) callback)
 
 instance Component UI "raw" where
   data Model "raw" = RawModel Graphical
@@ -239,25 +255,31 @@ instance Component UI "raw" where
 rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
 rawGraphical cp g = cp { model = RawModel g }
 
-fromModel :: Model a -> UI (ComponentView a)
+fromModel :: Component UI a => Model a -> UI (ComponentView a)
 fromModel model = do
+  uniq <- liftIO newUnique
+
   return $ ComponentView
     { model = model
+    , name = uid model ++ show (hashUnique uniq)
     }
 
 view :: (Component UI a) => ComponentView a -> UI Graphical
 view cp = do
   r <- use registry
-  SomeComponent cp <- getRegistryByUID (uid cp) r
+  SomeComponent cp <- getRegistryByUID (name cp) r
   getGraphical (model cp)
 
 operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI () -> UI ()
 operateModel cp f = do
   r <- use registry
-  modifyMRegistryByUID (uid cp) r $ \(SomeComponent cp) -> do
+  modifyMRegistryByUID (name cp) r $ \(SomeComponent cp) -> do
     model' <- flip execStateT (model cp) $ unsafeCoerce f
     return $ SomeComponent $ cp { model = model' }
 
 new :: Component UI a => ModelParam a -> UI (ComponentView a)
-new p = fromModel =<< newModel p
+new p = do
+  cp <- fromModel =<< newModel p
+  initComponent cp
+  return cp
 

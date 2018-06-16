@@ -5,6 +5,7 @@ import qualified SDL as SDL
 import SDL.Vect
 import Control.Monad
 import Control.Monad.State
+import Control.Lens (use)
 import Data.Extensible
 import Data.Ix (inRange)
 import Graphics.UI.Refluxive
@@ -14,10 +15,11 @@ instance Component UI "counter" where
   data Model "counter" = CounterModel Int
   data Signal "counter" = Clicked
 
-  watcher _ =
+  watcher self = []
+  {-
     [ watch "builtin" $ \case
         BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (P pos)))) -> do
-          when (inRange (V2 0 0, V2 200 100) pos) $ lift $ emit Clicked
+          when (inRange (V2 0 0, V2 200 100) pos) $ lift $ emit self Clicked
           liftIO $ print "builtin watch!"
         _ -> return ()
     , watch "counter" $ \case
@@ -27,8 +29,18 @@ instance Component UI "counter" where
           liftIO $ putStrLn $ "counter:" ++ show c
           return ()
     ]
+-}
 
   newModel () = return (CounterModel 0)
+
+  initComponent self = do
+    b <- use builtIn
+
+    addWatchSignal self $ watch b $ \case
+      BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (P pos)))) -> do
+        when (inRange (V2 0 0, V2 200 100) pos) $ lift $ emit self Clicked
+        liftIO $ print "builtin watch!"
+      _ -> return ()
 
   getGraphical (CounterModel n) = do
     return $ graphics
@@ -60,5 +72,5 @@ main = runUI $ do
     , clip (V2 200 40) $ colored (V4 0 0 0 255) $ text "hey youyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
     ]
 
-  mainloop All
+  mainloop [asRoot raw, asRoot counter]
 
