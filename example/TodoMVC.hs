@@ -18,21 +18,6 @@ instance Component UI "text-form" where
     }
   data Signal "text-form" = CreateItem T.Text
 
-{-
-  watcher self =
-    [ watch "builtin" $ \case
-        BuiltInSignal (SDL.Event _ (SDL.TextInputEvent (SDL.TextInputEventData _ txt))) -> do
-          modify $ (\model -> model { content = content model `T.append` txt })
-        BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeBackspace _)))) -> do
-          modify $ (\model -> model { content = if T.null (content model) then content model else T.init (content model) })
-        BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeReturn _)))) -> do
-          model <- get
-          lift $ emit self $ CreateItem (content model)
-          put $ model { content = "" }
-        _ -> return ()
-    ]
--}
-
   newModel p = return (TextformModel "" (p ^. #placeholder))
 
   initComponent self = do
@@ -63,14 +48,6 @@ instance Component UI "button" where
   data Model "button" = ButtonModel Bool T.Text
   data Signal "button" = Clicked | Hover
 
-{-
-  watcher _ =
-    [ watch "builtin" $ \case
-        BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
-          liftIO $ print v
-        _ -> return ()
-    ]
--}
   newModel param = return $ ButtonModel False (param ^. #label)
 
   initComponent self = do
@@ -124,23 +101,7 @@ instance Component UI "app" where
     , itemlist :: ComponentView "item-checklist"
     , button :: ComponentView "button"
     }
-
-{-
-  watcher _ =
-    [ watch "text-form" $ \case
-        CreateItem item -> do
-          model <- get
-          lift $ operateModel (itemlist model) $ do
-            checkbox <- lift $ new @"checkbox" ()
-            lift $ register checkbox
-
-            modify $ \(ItemListModel xs) -> ItemListModel ((checkbox, item) : xs)
-    , watch "builtin" $ \case
-        BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeEscape _)))) ->
-          lift quit
-        _ -> return ()
-    ]
--}
+  data Signal "app"
 
   newModel () = do
     textform <- new @"text-form" (#placeholder @= "What needs to be done?" <: nil)
