@@ -27,6 +27,7 @@ data ComponentView a
   }
 
 class KnownSymbol a => Component m a | a -> m where
+  type family ModelParam a
   data family Model a
   data family Signal a
 
@@ -36,7 +37,7 @@ class KnownSymbol a => Component m a | a -> m where
   watcher :: proxy a -> [Watcher m a]
   watcher _ = []
 
-  setup :: MonadIO m => m (ComponentView a)
+  setup :: MonadIO m => ModelParam a -> m (ComponentView a)
   getGraphical :: MonadIO m => Model a -> m Graphical
 
 

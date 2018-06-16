@@ -23,6 +23,7 @@ default-extensions:
 - MultiParamTypeClasses
 - TypeApplications
 - OverloadedLabels
+- TypeOperators
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package

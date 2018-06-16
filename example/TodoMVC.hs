@@ -5,11 +5,13 @@ import qualified SDL as SDL
 import SDL.Vect
 import Control.Monad
 import Control.Monad.State
+import Control.Lens hiding (view)
 import Data.Extensible
 import qualified Data.Text as T
 import Graphics.UI.Refluxive
 
 instance Component UI "text-form" where
+  type ModelParam "text-form" = Record '[ "placeholder" >: T.Text ]
   data Model "text-form" = TextformModel
     { content :: T.Text
     , placeholder :: T.Text
@@ -29,7 +31,7 @@ instance Component UI "text-form" where
         _ -> return ()
     ]
 
-  setup = new (TextformModel "" "What needs to be done?")
+  setup p = new (TextformModel "" (p ^. #placeholder))
 
   getGraphical (TextformModel txt placeholder) =
     return $ clip (V2 200 50) $ graphics
@@ -41,6 +43,7 @@ instance Component UI "text-form" where
       ]
 
 instance Component UI "button" where
+  type ModelParam "button" = Record '[ "label" >: T.Text ]
   data Model "button" = ButtonModel Bool T.Text
   data Signal "button" = Clicked | Hover
 
@@ -51,7 +54,7 @@ instance Component UI "button" where
         _ -> return ()
     ]
 
-  setup = new $ ButtonModel False "button"
+  setup param = new $ ButtonModel False (param ^. #label)
 
   getGraphical (ButtonModel b txt) =
     return $ graphics
@@ -60,16 +63,18 @@ instance Component UI "button" where
       ]
 
 instance Component UI "item-list" where
+  type ModelParam "item-list" = ()
   data Model "item-list" = ItemListModel [T.Text]
   data Signal "item-list" = AddItem T.Text
 
-  setup = new $ ItemListModel []
+  setup () = new $ ItemListModel []
 
   getGraphical (ItemListModel xs) =
     return $ graphics $
       fmap (\(i,x) -> translate (V2 0 (i * 30)) $ text x) $ zip [0..] xs
 
 instance Component UI "app" where
+  type ModelParam "app" = ()
   data Model "app" = AppModel
     { textform :: ComponentView "text-form"
     , itemlist :: ComponentView "item-list"
@@ -88,10 +93,10 @@ instance Component UI "app" where
         _ -> return ()
     ]
 
-  setup = do
-    textform <- setup @_ @"text-form"
-    itemlist <- setup @_ @"item-list"
-    button <- setup @_ @"button"
+  setup () = do
+    textform <- setup @_ @"text-form" (#placeholder @= "What needs to be done?" <: nil)
+    itemlist <- setup @_ @"item-list" ()
+    button <- setup @_ @"button" (#label @= "button" <: nil)
 
     register textform
     register itemlist
@@ -118,7 +123,7 @@ main :: IO ()
 main = runUI $ do
   setClearColor (V4 255 255 255 255)
 
-  app <- setup @_ @"app"
+  app <- setup @_ @"app" ()
   register app
 
   mainloop $ RootUIDs [uid app]

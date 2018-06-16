@@ -234,9 +234,10 @@ addWatchSignal (w@(Watcher name callback)) = do
 
 instance Component UI "raw" where
   data Model "raw" = RawModel Graphical
+  type ModelParam "raw" = ()
   data Signal "raw"
 
-  setup = do
+  setup () = do
     cp <- new $ RawModel empty
     return cp
 
