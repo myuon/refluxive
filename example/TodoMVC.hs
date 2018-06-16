@@ -29,16 +29,35 @@ instance Component UI "text-form" where
   setup = new (TextformModel "")
 
   getGraphical (TextformModel txt) =
-    return $ clip (V2 200 100) $ graphics
-      [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 200 100)
-      , translate (V2 20 20) $ text $ txt `T.append` "■"
+    return $ clip (V2 200 50) $ graphics
+      [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 200 50)
+      , translate (V2 5 13) $ text $ txt `T.append` "■"
+      ]
+
+instance Component UI "button" where
+  data Model "button" = ButtonModel Bool T.Text
+  data Signal "button" = Clicked | Hover
+
+  watcher _ =
+    [ watch "builtin" $ \case
+        BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
+          liftIO $ print v
+        _ -> return ()
+    ]
+
+  setup = new $ ButtonModel False "button"
+
+  getGraphical (ButtonModel b txt) =
+    return $ graphics
+      [ colored (V4 40 40 40 255) $ rectangleWith (#fill @= True <: nil) (V2 0 0) (V2 50 30)
+      , colored (V4 255 255 255 255) $ translate (V2 5 5) $ text txt
       ]
 
 instance Component UI "item-list" where
   data Model "item-list" = ItemListModel [T.Text]
   data Signal "item-list" = AddItem T.Text
 
-  setup = new $ ItemListModel ["----"]
+  setup = new $ ItemListModel []
 
   getGraphical (ItemListModel xs) =
     return $ graphics $
@@ -48,6 +67,7 @@ instance Component UI "app" where
   data Model "app" = AppModel
     { textform :: ComponentView "text-form"
     , itemlist :: ComponentView "item-list"
+    , button :: ComponentView "button"
     }
 
   watcher _ =
@@ -61,22 +81,27 @@ instance Component UI "app" where
   setup = do
     textform <- setup @_ @"text-form"
     itemlist <- setup @_ @"item-list"
+    button <- setup @_ @"button"
 
     register textform
     register itemlist
+    register button
 
     new $ AppModel
       { textform = textform
       , itemlist = itemlist
+      , button = button
       }
 
   getGraphical model = do
     textformView <- view $ textform model
     itemlistView <- view $ itemlist model
+    buttonView <- view $ button model
 
     return $ translate (V2 50 50) $ graphics $
       [ textformView
-      , translate (V2 0 100) itemlistView
+      , translate (V2 0 50) itemlistView
+      , translate (V2 0 200) buttonView
       ]
 
 main :: IO ()
