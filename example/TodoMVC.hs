@@ -7,6 +7,7 @@ import Control.Monad
 import Control.Monad.State
 import Control.Lens hiding (view)
 import Data.Extensible
+import Data.Ix (inRange)
 import qualified Data.Text as T
 import Graphics.UI.Refluxive
 
@@ -23,7 +24,7 @@ instance Component UI "text-form" where
   initComponent self = do
     b <- use builtIn
 
-    addWatchSignal self $ watch b $ \case
+    addWatchSignal self $ watch b $ \_ -> \case
       BuiltInSignal (SDL.Event _ (SDL.TextInputEvent (SDL.TextInputEventData _ txt))) -> do
         modify $ (\model -> model { content = content model `T.append` txt })
       BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeBackspace _)))) -> do
@@ -53,7 +54,7 @@ instance Component UI "button" where
   initComponent self = do
     b <- use builtIn
 
-    addWatchSignal self $ watch b $ \case
+    addWatchSignal self $ watch b $ \_ -> \case
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
         liftIO $ print v
       _ -> return ()
@@ -71,11 +72,20 @@ instance Component UI "checkbox" where
 
   newModel () = return $ CheckBoxModel False
 
+  initComponent self = do
+    b <- use builtIn
+
+    addWatchSignal self $ watch b $ \rs -> \case
+      BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
+        when (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + V2 30 30) (fmap fromEnum v)) $ do
+          modify $ \(CheckBoxModel b) -> CheckBoxModel (not b)
+      _ -> return ()
+
   getGraphical (CheckBoxModel b) =
     return $ graphics
       [ if b
-        then colored (V4 100 255 100 255) $ text "☑"
-        else colored (V4 200 200 200 255) $ text "☐"
+        then colored (V4 50 150 50 255) $ text "✓"
+        else colored (V4 200 200 200 255) $ text "□"
       ]
 
 instance Component UI "item-checklist" where
@@ -99,30 +109,26 @@ instance Component UI "app" where
   data Model "app" = AppModel
     { textform :: ComponentView "text-form"
     , itemlist :: ComponentView "item-checklist"
-    , button :: ComponentView "button"
     }
   data Signal "app"
 
   newModel () = do
     textform <- new @"text-form" (#placeholder @= "What needs to be done?" <: nil)
     itemlist <- new @"item-checklist" ()
-    button <- new @"button" (#label @= "button" <: nil)
 
     register textform
     register itemlist
-    register button
 
     return $ AppModel
       { textform = textform
       , itemlist = itemlist
-      , button = button
       }
 
   initComponent self = do
     b <- use builtIn
     let model = getModel self
 
-    addWatchSignal self $ watch (textform model) $ \case
+    addWatchSignal self $ watch (textform model) $ \_ -> \case
       CreateItem item -> do
         model <- get
         lift $ operateModel (itemlist model) $ do
@@ -131,20 +137,18 @@ instance Component UI "app" where
 
           modify $ \(ItemListModel xs) -> ItemListModel ((checkbox, item) : xs)
 
-    addWatchSignal self $ watch b $ \case
-        BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeEscape _)))) ->
-          lift quit
-        _ -> return ()
+    addWatchSignal self $ watch b $ \rs -> \case
+      BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeEscape _)))) ->
+        lift quit
+      _ -> return ()
 
   getGraphical model = do
     textformView <- view $ textform model
     itemlistView <- view $ itemlist model
-    buttonView <- view $ button model
 
     return $ translate (V2 50 50) $ graphics $
       [ textformView
       , translate (V2 0 50) itemlistView
-      , translate (V2 0 200) buttonView
       ]
 
 main :: IO ()

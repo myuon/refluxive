@@ -16,31 +16,23 @@ instance Component UI "counter" where
   data Signal "counter" = Clicked
 
   watcher self = []
-  {-
-    [ watch "builtin" $ \case
-        BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (P pos)))) -> do
-          when (inRange (V2 0 0, V2 200 100) pos) $ lift $ emit self Clicked
-          liftIO $ print "builtin watch!"
-        _ -> return ()
-    , watch "counter" $ \case
-        Clicked -> do
-          CounterModel c <- get
-          modify $ \(CounterModel n) -> CounterModel (n+1)
-          liftIO $ putStrLn $ "counter:" ++ show c
-          return ()
-    ]
--}
 
   newModel () = return (CounterModel 0)
 
   initComponent self = do
     b <- use builtIn
 
-    addWatchSignal self $ watch b $ \case
+    addWatchSignal self $ watch b $ \_ -> \case
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (P pos)))) -> do
         when (inRange (V2 0 0, V2 200 100) pos) $ lift $ emit self Clicked
         liftIO $ print "builtin watch!"
       _ -> return ()
+    addWatchSignal self $ watch self $ \_ -> \case
+      Clicked -> do
+        CounterModel c <- get
+        modify $ \(CounterModel n) -> CounterModel (n+1)
+        liftIO $ putStrLn $ "counter:" ++ show c
+        return ()
 
   getGraphical (CounterModel n) = do
     return $ graphics
