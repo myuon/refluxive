@@ -37,7 +37,7 @@ class KnownSymbol a => Component m a | a -> m where
   watcher :: proxy a -> [Watcher m a]
   watcher _ = []
 
-  setup :: MonadIO m => ModelParam a -> m (ComponentView a)
+  newModel :: MonadIO m => ModelParam a -> m (Model a)
   getGraphical :: MonadIO m => Model a -> m Graphical
 
 

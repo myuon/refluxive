@@ -28,7 +28,7 @@ instance Component UI "counter" where
           return ()
     ]
 
-  setup () = new (CounterModel 0)
+  newModel () = return (CounterModel 0)
 
   getGraphical (CounterModel n) = do
     return $ graphics
@@ -39,10 +39,10 @@ main :: IO ()
 main = runUI $ do
   setClearColor (V4 240 240 240 255)
 
-  counter <- setup @_ @"counter" ()
+  counter <- new @"counter" ()
   register counter
 
-  raw <- setup @_ @"raw" ()
+  raw <- new @"raw" ()
   register $ rawGraphical raw $ graphics $
     [ gridLayout (V2 50 50) $ translate (V2 2 2) $ graphics $
       [ colored (V4 30 30 30 255) $ graphics $

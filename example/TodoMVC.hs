@@ -31,11 +31,11 @@ instance Component UI "text-form" where
         _ -> return ()
     ]
 
-  setup p = new (TextformModel "" (p ^. #placeholder))
+  newModel p = return (TextformModel "" (p ^. #placeholder))
 
   getGraphical (TextformModel txt placeholder) =
-    return $ clip (V2 200 50) $ graphics
-      [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 200 50)
+    return $ clip (V2 300 50) $ graphics
+      [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 300 50)
       , translate (V2 5 13) $
         if T.null txt
         then colored (V4 100 100 100 255) $ text $ placeholder
@@ -54,7 +54,7 @@ instance Component UI "button" where
         _ -> return ()
     ]
 
-  setup param = new $ ButtonModel False (param ^. #label)
+  newModel param = return $ ButtonModel False (param ^. #label)
 
   getGraphical (ButtonModel b txt) =
     return $ graphics
@@ -62,22 +62,41 @@ instance Component UI "button" where
       , colored (V4 255 255 255 255) $ translate (V2 5 5) $ text txt
       ]
 
-instance Component UI "item-list" where
-  type ModelParam "item-list" = ()
-  data Model "item-list" = ItemListModel [T.Text]
-  data Signal "item-list" = AddItem T.Text
+instance Component UI "checkbox" where
+  type ModelParam "checkbox" = ()
+  data Model "checkbox" = CheckBoxModel Bool
+  data Signal "checkbox" = Changed Bool
 
-  setup () = new $ ItemListModel []
+  newModel () = return $ CheckBoxModel False
 
-  getGraphical (ItemListModel xs) =
-    return $ graphics $
-      fmap (\(i,x) -> translate (V2 0 (i * 30)) $ text x) $ zip [0..] xs
+  getGraphical (CheckBoxModel b) =
+    return $ graphics
+      [ if b
+        then colored (V4 100 255 100 255) $ text "☑"
+        else colored (V4 200 200 200 255) $ text "☐"
+      ]
+
+instance Component UI "item-checklist" where
+  type ModelParam "item-checklist" = ()
+  data Model "item-checklist" = ItemListModel [(ComponentView "checkbox", T.Text)]
+  data Signal "item-checklist" = AddItem T.Text
+
+  newModel () = return $ ItemListModel []
+
+  getGraphical (ItemListModel xs) = do
+    fmap graphics $ forM (zip [0..] xs) $ \(i, (checkbox, content)) -> do
+      checkboxView <- view $ checkbox
+
+      return $ translate (V2 0 (i * 30)) $ graphics
+        [ translate (V2 0 0) $ checkboxView
+        , translate (V2 30 0) $ text content
+        ]
 
 instance Component UI "app" where
   type ModelParam "app" = ()
   data Model "app" = AppModel
     { textform :: ComponentView "text-form"
-    , itemlist :: ComponentView "item-list"
+    , itemlist :: ComponentView "item-checklist"
     , button :: ComponentView "button"
     }
 
@@ -86,23 +105,26 @@ instance Component UI "app" where
         CreateItem item -> do
           model <- get
           lift $ operateModel (itemlist model) $ do
-            modify $ \(ItemListModel xs) -> ItemListModel (item : xs)
+            checkbox <- lift $ new @"checkbox" ()
+            lift $ register checkbox
+
+            modify $ \(ItemListModel xs) -> ItemListModel ((checkbox, item) : xs)
     , watch "builtin" $ \case
         BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeEscape _)))) ->
           lift quit
         _ -> return ()
     ]
 
-  setup () = do
-    textform <- setup @_ @"text-form" (#placeholder @= "What needs to be done?" <: nil)
-    itemlist <- setup @_ @"item-list" ()
-    button <- setup @_ @"button" (#label @= "button" <: nil)
+  newModel () = do
+    textform <- new @"text-form" (#placeholder @= "What needs to be done?" <: nil)
+    itemlist <- new @"item-checklist" ()
+    button <- new @"button" (#label @= "button" <: nil)
 
     register textform
     register itemlist
     register button
 
-    new $ AppModel
+    return $ AppModel
       { textform = textform
       , itemlist = itemlist
       , button = button
@@ -123,7 +145,7 @@ main :: IO ()
 main = runUI $ do
   setClearColor (V4 255 255 255 255)
 
-  app <- setup @_ @"app" ()
+  app <- new @"app" ()
   register app
 
   mainloop $ RootUIDs [uid app]

@@ -20,6 +20,7 @@ module Graphics.UI.Refluxive
   , setClearColor
   , quit
 
+  , fromModel
   , new
   , view
   , operateModel
@@ -231,17 +232,15 @@ instance Component UI "raw" where
   type ModelParam "raw" = ()
   data Signal "raw"
 
-  setup () = do
-    cp <- new $ RawModel empty
-    return cp
+  newModel () = return $ RawModel empty
 
   getGraphical (RawModel g) = return g
 
 rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
 rawGraphical cp g = cp { model = RawModel g }
 
-new :: Model a -> UI (ComponentView a)
-new model = do
+fromModel :: Model a -> UI (ComponentView a)
+fromModel model = do
   return $ ComponentView
     { model = model
     }
@@ -258,4 +257,7 @@ operateModel cp f = do
   modifyMRegistryByUID (uid cp) r $ \(SomeComponent cp) -> do
     model' <- flip execStateT (model cp) $ unsafeCoerce f
     return $ SomeComponent $ cp { model = model' }
+
+new :: Component UI a => ModelParam a -> UI (ComponentView a)
+new p = fromModel =<< newModel p
 
