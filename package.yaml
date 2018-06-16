@@ -45,7 +45,6 @@ dependencies:
 - vector
 - containers
 - text
-- unagi-chan
 
 library:
   source-dirs: src

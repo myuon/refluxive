@@ -27,7 +27,7 @@ module Graphics.UI.Refluxive
 
 import qualified SDL as SDL
 import qualified SDL.Font as SDLF
-import Control.Concurrent.Chan.Unagi.NoBlocking
+import Control.Concurrent.MVar
 import Control.Lens hiding (view)
 import Control.Monad.State
 import Control.Monad.Cont
@@ -81,22 +81,19 @@ modifyMRegistryByUID uid reg updater = do
   liftIO $ V.write (reg ^. content) (reg ^. uids ^?! ix uid) next
 
 data SomeSignal = forall a. Component UI a => SomeSignal (Signal a)
-newtype EventStream = EventStream { getEventStream :: (InChan (String, SomeSignal), OutChan (String, SomeSignal)) }
+newtype EventStream = EventStream { getEventStream :: MVar [(String, SomeSignal)] }
 
 newEventStream :: MonadIO m => m EventStream
-newEventStream = fmap EventStream $ liftIO newChan
+newEventStream = fmap EventStream $ liftIO $ newMVar []
 
 pushEvent :: (Component UI a, MonadIO m) => EventStream -> Signal a -> m ()
-pushEvent stream s = liftIO $ writeChan (fst $ getEventStream stream) $ makeEvent s
-
-pushEvents :: MonadIO m => EventStream -> [(String, SomeSignal)] -> m ()
-pushEvents stream s = liftIO $ writeList2Chan (fst $ getEventStream stream) s
+pushEvent stream s = liftIO $ modifyMVar_ (getEventStream stream) $ return . (makeEvent s :)
 
 makeEvent :: Component UI a => Signal a -> (String, SomeSignal)
 makeEvent s = (uid s, SomeSignal s)
 
-pullEvent :: MonadIO m => EventStream -> m (Maybe (String, SomeSignal))
-pullEvent stream = liftIO $ tryRead =<< tryReadChan (snd $ getEventStream stream)
+pullEvents :: MonadIO m => EventStream -> m [(String, SomeSignal)]
+pullEvents stream = liftIO $ fmap reverse $ swapMVar (getEventStream stream) []
 
 newtype UI a = UI { unpackUI :: StateT UIState IO a } deriving (Functor, Applicative, Monad, MonadIO)
 data SomeComponent = forall a. Component UI a => SomeComponent (ComponentView a)
@@ -208,18 +205,14 @@ mainloop root = do
   use renderer >>= SDL.present
 
   -- event handling
-  events <- pullEvent =<< use eventStream
-  case events of
-    Just (src, SomeSignal signal) -> do
-      liftIO $ print "pullEvent"
-      callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
+  use eventStream >>= pullEvents >>= \evs -> forM_ evs $ \(src, SomeSignal signal) -> do
+    callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
 
-      r <- use registry
-      forM_ callbacks $ \(SomeCallback tgt cb) -> do
-        modifyMRegistryByUID tgt r $ \(SomeComponent cp) -> do
-          model' <- flip execStateT (model cp) $ unsafeCoerce cb signal
-          return $ SomeComponent $ cp { model = model' }
-    Nothing -> return ()
+    r <- use registry
+    forM_ callbacks $ \(SomeCallback tgt cb) -> do
+      modifyMRegistryByUID tgt r $ \(SomeComponent cp) -> do
+        model' <- flip execStateT (model cp) $ unsafeCoerce cb signal
+        return $ SomeComponent $ cp { model = model' }
 
   -- wait
   SDL.delay 33
