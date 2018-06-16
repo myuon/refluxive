@@ -10,28 +10,34 @@ import qualified Data.Text as T
 import Graphics.UI.Refluxive
 
 instance Component UI "text-form" where
-  data Model "text-form" = TextformModel T.Text
+  data Model "text-form" = TextformModel
+    { content :: T.Text
+    , placeholder :: T.Text
+    }
   data Signal "text-form" = CreateItem T.Text
 
   watcher _ =
     [ watch "builtin" $ \case
         BuiltInSignal (SDL.Event _ (SDL.TextInputEvent (SDL.TextInputEventData _ txt))) -> do
-          modify $ (\(TextformModel t) -> TextformModel $ t `T.append` txt)
+          modify $ (\model -> model { content = content model `T.append` txt })
         BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeBackspace _)))) -> do
-          modify $ (\(TextformModel t) -> TextformModel $ if T.null t then t else T.init t)
+          modify $ (\model -> model { content = if T.null (content model) then content model else T.init (content model) })
         BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeReturn _)))) -> do
-          TextformModel item <- get
-          lift $ emit $ CreateItem item
-          put $ TextformModel ""
+          model <- get
+          lift $ emit $ CreateItem (content model)
+          put $ model { content = "" }
         _ -> return ()
     ]
 
-  setup = new (TextformModel "")
+  setup = new (TextformModel "" "What needs to be done?")
 
-  getGraphical (TextformModel txt) =
+  getGraphical (TextformModel txt placeholder) =
     return $ clip (V2 200 50) $ graphics
       [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 200 50)
-      , translate (V2 5 13) $ text $ txt `T.append` "■"
+      , translate (V2 5 13) $
+        if T.null txt
+        then colored (V4 100 100 100 255) $ text $ placeholder
+        else colored (V4 0 0 0 255) $ text $ txt `T.append` "■"
       ]
 
 instance Component UI "button" where
