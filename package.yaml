@@ -44,8 +44,8 @@ dependencies:
 - lens
 - vector
 - containers
-- stm
 - text
+- unagi-chan
 
 library:
   source-dirs: src

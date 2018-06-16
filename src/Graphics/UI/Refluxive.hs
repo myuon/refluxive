@@ -26,9 +26,8 @@ module Graphics.UI.Refluxive
 
 import qualified SDL as SDL
 import qualified SDL.Font as SDLF
-import Control.Concurrent.STM.TChan
+import Control.Concurrent.Chan.Unagi.NoBlocking
 import Control.Lens hiding (view)
-import Control.Monad.STM
 import Control.Monad.State
 import Control.Monad.Cont
 import Data.Word (Word8)
@@ -81,16 +80,22 @@ modifyMRegistryByUID uid reg updater = do
   liftIO $ V.write (reg ^. content) (reg ^. uids ^?! ix uid) next
 
 data SomeSignal = forall a. Component UI a => SomeSignal (Signal a)
-newtype EventStream = EventStream { getEventStream :: TChan (String, SomeSignal) }
+newtype EventStream = EventStream { getEventStream :: (InChan (String, SomeSignal), OutChan (String, SomeSignal)) }
 
 newEventStream :: MonadIO m => m EventStream
-newEventStream = fmap EventStream $ liftIO newTChanIO
+newEventStream = fmap EventStream $ liftIO newChan
 
 pushEvent :: (Component UI a, MonadIO m) => EventStream -> Signal a -> m ()
-pushEvent stream s = liftIO $ atomically $ writeTChan (getEventStream stream) (uid s, SomeSignal s)
+pushEvent stream s = liftIO $ writeChan (fst $ getEventStream stream) $ makeEvent s
+
+pushEvents :: MonadIO m => EventStream -> [(String, SomeSignal)] -> m ()
+pushEvents stream s = liftIO $ writeList2Chan (fst $ getEventStream stream) s
+
+makeEvent :: Component UI a => Signal a -> (String, SomeSignal)
+makeEvent s = (uid s, SomeSignal s)
 
 pullEvent :: MonadIO m => EventStream -> m (Maybe (String, SomeSignal))
-pullEvent stream = liftIO $ atomically $ tryReadTChan (getEventStream stream)
+pullEvent stream = liftIO $ tryRead =<< tryReadChan (snd $ getEventStream stream)
 
 instance Component UI "builtin" where
   data Signal "builtin" = BuiltInSignal SDL.Event
@@ -120,16 +125,12 @@ runUI m = do
   SDLF.initialize
 
   evalStateT (unpackUI $ initialize >> m) =<< UIState
-    <$> ((\w -> SDL.createRenderer w (-1) SDL.defaultRenderer) =<< SDL.createWindow "window" SDL.defaultWindow)
+    <$> ((\w -> SDL.createRenderer w (-1) SDL.defaultRenderer) =<< SDL.createWindow "window" (SDL.defaultWindow { SDL.windowResizable = True }))
     <*> newRegistry
     <*> newEventStream
     <*> pure M.empty
     <*> fmap Just (SDLF.load "/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf" 20)
     <*> pure (V4 255 255 255 255)
-
-  where
-    initialize :: UI ()
-    initialize = use clearColor >>= setClearColor
 
 setClearColor :: SDLF.Color -> UI ()
 setClearColor c = do
@@ -160,16 +161,25 @@ clear = do
 
 data Root = All | RootUIDs [String]
 
+quit :: IO ()
+quit = do
+  SDLF.quit
+  SDL.quit
+
+initialize :: UI ()
+initialize = do
+  use clearColor >>= setClearColor
+
+  es <- use eventStream
+  SDL.addEventWatch $ \case
+    SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ _ _ (SDL.Keysym SDL.ScancodeEscape _ _))) -> quit
+    e -> pushEvent es (BuiltInSignal e)
+
+  return ()
+
 mainloop :: Root -> UI ()
 mainloop root = do
-  events <- SDL.pollEvents
-  keyQuit <- return $ flip any events $ \ev -> case SDL.eventPayload ev of
-    SDL.KeyboardEvent (SDL.KeyboardEventData _ _ _ (SDL.Keysym SDL.ScancodeQ _ _)) -> True
-    _ -> False
-
-  -- pour events into stream
-  es <- use eventStream
-  liftIO $ mapM_ (pushEvent es . BuiltInSignal) events
+  SDL.pumpEvents
 
   -- clear
   clear
@@ -209,11 +219,7 @@ mainloop root = do
   -- wait
   SDL.delay 33
 
-  -- quit?
-  unless keyQuit $ mainloop root
-
-  SDLF.quit
-  SDL.quit
+  mainloop root
 
 watch :: (Component UI src, Component UI tgt) => String -> (Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
 watch = Watcher
