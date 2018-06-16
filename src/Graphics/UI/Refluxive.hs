@@ -159,11 +159,6 @@ register cp = do
   (_, reg') <- liftIO $ pushRegistry (name cp) (SomeComponent cp) reg
   registry .= reg'
 
-  listen cp
-
-listen :: Component UI a => ComponentView a -> UI ()
-listen cp = mapM_ (addWatchSignal cp) $ watcher cp
-
 emit :: Component UI a => ComponentView a -> Signal a -> UI ()
 emit cp s = use eventStream >>= \es -> liftIO (pushEvent es cp s)
 

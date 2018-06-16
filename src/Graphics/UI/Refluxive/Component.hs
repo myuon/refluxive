@@ -37,9 +37,6 @@ class KnownSymbol a => Component m a | a -> m where
   uid :: proxy a -> String
   uid = symbolVal
 
-  watcher :: ComponentView a -> [Watcher m a]
-  watcher _ = []
-
   newModel :: MonadIO m => ModelParam a -> m (Model a)
 
   initComponent :: MonadIO m => ComponentView a -> m ()

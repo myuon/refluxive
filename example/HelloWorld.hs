@@ -15,8 +15,6 @@ instance Component UI "counter" where
   data Model "counter" = CounterModel Int
   data Signal "counter" = Clicked
 
-  watcher self = []
-
   newModel () = return (CounterModel 0)
 
   initComponent self = do
