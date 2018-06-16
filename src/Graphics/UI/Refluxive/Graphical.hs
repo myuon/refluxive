@@ -1,6 +1,8 @@
 {-# LANGUAGE TypeOperators, OverloadedLabels, FlexibleContexts, PolyKinds #-}
 module Graphics.UI.Refluxive.Graphical
   ( Graphical
+  , RenderState(..)
+  , defRenderState
 
   , empty
   , text
@@ -11,6 +13,7 @@ module Graphics.UI.Refluxive.Graphical
   , translate
   , graphics
   , clip
+  , viewInfo
 
   , render
   ) where
@@ -47,6 +50,7 @@ data Graphical
   | Graphics [Graphical]
   | Text T.Text
   | Clip SDL.Pos Graphical
+  | ViewInfo String Graphical
 
 data RenderState
   = RenderState
@@ -63,14 +67,13 @@ defRenderState
   , scaler = SDL.V2 1 1
   }
 
-render :: MonadIO m => SDLF.Color -> Maybe SDLF.Font -> SDL.Renderer -> Graphical -> m ()
-render clearColor mfont renderer = \g -> go defRenderState g >> liftIO performGC where
-  go :: MonadIO m => RenderState -> Graphical -> m ()
+render :: MonadIO m => SDLF.Color -> Maybe SDLF.Font -> SDL.Renderer -> Graphical -> (RenderState -> String -> m ()) -> m ()
+render clearColor mfont renderer g cont = go defRenderState g >> liftIO performGC where
   go st Empty = return ()
   go st (GridLayout s g) = go (st { scaler = s }) g
-  go st (Rectangle style pos size) =
-    let topLeft = pos * scaler st + coordinate st in
-    let bottomRight = (pos + size) * scaler st + coordinate st in
+  go st (Rectangle style pos size) = do
+    let topLeft = pos * scaler st + coordinate st
+    let bottomRight = (pos + size) * scaler st + coordinate st
     case (style ^. #fill, fmap toEnum $ style ^. #rounded) of
       (True, Just r) -> SDL.fillRoundRectangle renderer topLeft bottomRight r (color st)
       (True, Nothing) -> SDL.fillRectangle renderer topLeft bottomRight (color st)
@@ -96,6 +99,7 @@ render clearColor mfont renderer = \g -> go defRenderState g >> liftIO performGC
     go (st { coordinate = SDL.V2 0 0 }) g
     SDL.rendererRenderTarget renderer SDL.$= Nothing
     SDL.copy renderer texture Nothing (Just $ SDL.Rectangle (SDL.P (coordinate st)) size)
+  go st (ViewInfo v g) = cont st v >> go st g
 
 empty :: Graphical
 empty = Empty
@@ -126,4 +130,7 @@ graphics = Graphics
 
 clip :: SDL.Pos -> Graphical -> Graphical
 clip = Clip
+
+viewInfo :: String -> Graphical -> Graphical
+viewInfo = ViewInfo
 

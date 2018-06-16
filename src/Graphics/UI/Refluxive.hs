@@ -35,11 +35,12 @@ import Control.Concurrent.MVar
 import Control.Lens hiding (view)
 import Control.Monad.State
 import Control.Monad.Cont
-import Data.Word (Word8)
+import Data.IORef
 import Data.Unique
 import qualified Data.Vector.Mutable as V
 import qualified Data.IntSet as S
 import qualified Data.Map as M
+import Data.Word (Word8)
 import Linear.V4
 import Unsafe.Coerce
 import Graphics.UI.Refluxive.Graphical
@@ -102,7 +103,7 @@ pullEvents stream = liftIO $ fmap reverse $ swapMVar (getEventStream stream) []
 
 newtype UI a = UI { unpackUI :: StateT UIState IO a } deriving (Functor, Applicative, Monad, MonadIO)
 data SomeComponent = forall a. Component UI a => SomeComponent (ComponentView a)
-data SomeCallback = forall a b. (Component UI a, Component UI b) => SomeCallback String (Signal a -> StateT (Model b) UI ())
+data SomeCallback = forall a b. (Component UI a, Component UI b) => SomeCallback String (RenderState -> Signal a -> StateT (Model b) UI ())
 
 data UIState
   = UIState
@@ -139,7 +140,7 @@ runUI m = do
     <*> newRegistry
     <*> newEventStream
     <*> pure M.empty
-    <*> fmap Just (SDLF.load "/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf" 20)
+    <*> fmap Just (SDLF.load "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" 20)
     <*> pure (V4 255 255 255 255)
     <*> pure False
     <*> pure Nothing
@@ -209,7 +210,11 @@ mainloop root = do
     r <- use renderer
     f <- use font
     c <- use clearColor
-    render c f r =<< view cp
+    g <- view cp
+    render c f r g $ \st name -> do
+      reg <- use registry
+      SomeComponent cp <- getRegistryByUID name reg
+      liftIO $ writeIORef (renderStateRef cp) st
 
   -- commit view changes
   use renderer >>= SDL.present
@@ -221,7 +226,8 @@ mainloop root = do
     r <- use registry
     forM_ callbacks $ \(SomeCallback tgt cb) -> do
       modifyMRegistryByUID tgt r $ \(SomeComponent cp) -> do
-        model' <- flip execStateT (model cp) $ unsafeCoerce cb signal
+        rs <- liftIO $ readIORef $ renderStateRef cp
+        model' <- flip execStateT (model cp) $ unsafeCoerce cb rs signal
         return $ SomeComponent $ cp { model = model' }
 
   -- wait
@@ -233,7 +239,7 @@ mainloop root = do
   SDLF.quit
   SDL.quit
 
-watch :: (Component UI src, Component UI tgt) => ComponentView src -> (Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
+watch :: (Component UI src, Component UI tgt) => ComponentView src -> (RenderState -> Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
 watch = Watcher
 
 addWatchSignal :: Component UI tgt => ComponentView tgt -> Watcher UI tgt -> UI ()
@@ -258,17 +264,20 @@ rawGraphical cp g = cp { model = RawModel g }
 fromModel :: Component UI a => Model a -> UI (ComponentView a)
 fromModel model = do
   uniq <- liftIO newUnique
+  renderRef <- liftIO $ newIORef defRenderState
 
   return $ ComponentView
     { model = model
     , name = uid model ++ show (hashUnique uniq)
+    , renderStateRef = renderRef
     }
 
 view :: (Component UI a) => ComponentView a -> UI Graphical
 view cp = do
   r <- use registry
+  when (name cp `M.notMember` (r ^. uids)) $ error $ "Unexpected name: " ++ name cp ++ ", you might forget registering the ComponentView?"
   SomeComponent cp <- getRegistryByUID (name cp) r
-  getGraphical (model cp)
+  viewInfo (name cp) <$> getGraphical (model cp)
 
 operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI () -> UI ()
 operateModel cp f = do

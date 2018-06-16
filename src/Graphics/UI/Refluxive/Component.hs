@@ -16,12 +16,14 @@ import GHC.TypeLits (symbolVal, KnownSymbol)
 
 type EventStream a = IORef [a]
 
-data Watcher m tgt = forall src. (Component m src, Component m tgt) => Watcher (ComponentView src) (Signal src -> StateT (Model tgt) m ())
+data Watcher m tgt = forall src. (Component m src, Component m tgt) =>
+  Watcher (ComponentView src) (RenderState -> Signal src -> StateT (Model tgt) m ())
 
 data ComponentView a
   = ComponentView
   { model :: Model a
   , name :: String
+  , renderStateRef :: IORef RenderState
   }
 
 getModel :: ComponentView a -> Model a
