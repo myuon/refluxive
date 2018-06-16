@@ -190,13 +190,23 @@ builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
 
 mainloop :: [SomeComponent] -> UI ()
 mainloop root = do
-  ev <- SDL.pollEvent
-  case ev of
-    Just ev -> do
-      es <- use eventStream
-      Just b <- use builtIn'
-      pushEvent es b $ BuiltInSignal ev
-    _ -> return ()
+  -- poll sdl events
+  SDL.pollEvents >>= \evs -> forM_ evs $ \ev -> do
+    es <- use eventStream
+    Just b <- use builtIn'
+
+    pushEvent es b $ BuiltInSignal ev
+
+  -- event handling
+  use eventStream >>= pullEvents >>= \evs -> forM_ evs $ \(src, SomeSignal signal) -> do
+    callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
+
+    r <- use registry
+    forM_ callbacks $ \(SomeCallback tgt cb) -> do
+      modifyMRegistryByUID tgt r $ \(SomeComponent cp) -> do
+        rs <- liftIO $ readIORef $ renderStateRef cp
+        model' <- flip execStateT (model cp) $ unsafeCoerce cb rs signal
+        return $ SomeComponent $ cp { model = model' }
 
   -- clear
   clear
@@ -218,17 +228,6 @@ mainloop root = do
 
   -- commit view changes
   use renderer >>= SDL.present
-
-  -- event handling
-  use eventStream >>= pullEvents >>= \evs -> forM_ evs $ \(src, SomeSignal signal) -> do
-    callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
-
-    r <- use registry
-    forM_ callbacks $ \(SomeCallback tgt cb) -> do
-      modifyMRegistryByUID tgt r $ \(SomeComponent cp) -> do
-        rs <- liftIO $ readIORef $ renderStateRef cp
-        model' <- flip execStateT (model cp) $ unsafeCoerce cb rs signal
-        return $ SomeComponent $ cp { model = model' }
 
   -- wait
   SDL.delay 33
