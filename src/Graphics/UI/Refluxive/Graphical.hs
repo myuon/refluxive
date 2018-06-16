@@ -25,6 +25,7 @@ import Data.Extensible
 import qualified Data.Text as T
 import Data.Maybe
 import Foreign.C.Types
+import System.Mem
 
 type ShapeStyle =
   [ "fill" >: Bool
@@ -63,7 +64,7 @@ defRenderState
   }
 
 render :: MonadIO m => SDLF.Color -> Maybe SDLF.Font -> SDL.Renderer -> Graphical -> m ()
-render clearColor mfont renderer = go defRenderState where
+render clearColor mfont renderer = \g -> go defRenderState g >> liftIO performGC where
   go :: MonadIO m => RenderState -> Graphical -> m ()
   go st Empty = return ()
   go st (GridLayout s g) = go (st { scaler = s }) g
