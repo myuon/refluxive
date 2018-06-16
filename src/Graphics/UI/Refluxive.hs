@@ -151,6 +151,13 @@ listen cp = mapM_ addWatchSignal $ watcher cp
 emit :: Component UI a => Signal a -> UI ()
 emit s = use eventStream >>= \es -> liftIO (pushEvent es s)
 
+clear :: UI ()
+clear = do
+  r <- use renderer
+  c <- use clearColor
+  SDL.rendererDrawColor r SDL.$= c
+  SDL.clear r
+
 data Root = All | RootUIDs [String]
 
 mainloop :: Root -> UI ()
@@ -165,7 +172,7 @@ mainloop root = do
   liftIO $ mapM_ (pushEvent es . BuiltInSignal) events
 
   -- clear
-  use renderer >>= SDL.clear
+  clear
 
   -- render all components
   keys <- do
