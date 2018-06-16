@@ -165,13 +165,7 @@ quit = isQuit .= True
 data Root = All | RootUIDs [String]
 
 initialize :: UI ()
-initialize = do
-  use clearColor >>= setClearColor
-
-  es <- use eventStream
-  SDL.addEventWatch $ pushEvent es . BuiltInSignal
-
-  return ()
+initialize = use clearColor >>= setClearColor
 
 mainloop :: Root -> UI ()
 mainloop root = do
