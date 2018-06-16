@@ -78,7 +78,9 @@ pushRegistry name a reg = (`runContT` return) $ callCC $ \return_ -> do
   return $ (length, reg & content .~ content' & keys %~ S.insert length & uids %~ M.insert name length)
 
 getRegistryByUID :: MonadIO m => String -> Registry a -> m a
-getRegistryByUID uid reg = liftIO $ V.read (reg ^. content) (reg ^. uids ^?! ix uid)
+getRegistryByUID uid reg = do
+  when (uid `M.notMember` (reg ^. uids)) $ error $ "Unexpected name: " ++ uid ++ ", you might forget registering the ComponentView?"
+  liftIO $ V.read (reg ^. content) (reg ^. uids ^?! ix uid)
 
 modifyMRegistryByUID :: MonadIO m => String -> Registry a -> (a -> m a) -> m ()
 modifyMRegistryByUID uid reg updater = do
@@ -274,7 +276,6 @@ fromModel model = do
 view :: (Component UI a) => ComponentView a -> UI Graphical
 view cp = do
   r <- use registry
-  when (name cp `M.notMember` (r ^. uids)) $ error $ "Unexpected name: " ++ name cp ++ ", you might forget registering the ComponentView?"
   SomeComponent cp <- getRegistryByUID (name cp) r
   viewInfo (name cp) <$> getGraphical (model cp)
 
