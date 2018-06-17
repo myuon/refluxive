@@ -44,27 +44,6 @@ instance Component UI "text-form" where
         else colored (V4 0 0 0 255) $ text $ txt `T.append` "■"
       ]
 
-instance Component UI "button" where
-  type ModelParam "button" = Record '[ "label" >: T.Text ]
-  data Model "button" = ButtonModel Bool T.Text
-  data Signal "button" = Clicked | Hover
-
-  newModel param = return $ ButtonModel False (param ^. #label)
-
-  initComponent self = do
-    b <- use builtIn
-
-    addWatchSignal self $ watch b $ \_ -> \case
-      BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
-        liftIO $ print v
-      _ -> return ()
-
-  getGraphical (ButtonModel b txt) =
-    return $ graphics
-      [ colored (V4 40 40 40 255) $ rectangleWith (#fill @= True <: nil) (V2 0 0) (V2 50 30)
-      , colored (V4 255 255 255 255) $ translate (V2 5 5) $ text txt
-      ]
-
 instance Component UI "checkbox" where
   type ModelParam "checkbox" = ()
   data Model "checkbox" = CheckBoxModel Bool

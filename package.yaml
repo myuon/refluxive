@@ -24,6 +24,7 @@ default-extensions:
 - TypeApplications
 - OverloadedLabels
 - TypeOperators
+- OverloadedStrings
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -71,14 +72,14 @@ executables:
     - -main-is TodoMVC
     dependencies:
     - refluxive
-  example-button:
-    main:                Button.hs
+  example-clickcounter:
+    main:                ClickCounterButton.hs
     source-dirs:         example
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    - -main-is Button
+    - -main-is ClickCounterButton
     dependencies:
     - refluxive
 
