@@ -4,113 +4,129 @@ import qualified SDL as SDL
 import SDL.Vect
 import Control.Lens hiding (view)
 import Control.Monad.State
-import Data.Extensible
-import Data.IORef
 import Data.Ix (inRange)
-import qualified Data.Vector.Mutable as V
+import Data.Extensible
+import qualified Data.Vector as V
+import qualified Data.Vector.Mutable as VM
 import qualified Data.Refluxive.UI.Button as Button
 import Graphics.UI.Refluxive
+import System.Random.MWC
 
-type CellArray = V.IOVector (V.IOVector Bool)
+data CellArray = CellArray
+  { getCellArray :: VM.IOVector Bool
+  , arraySize :: V2 Int
+  }
 
-newCellArray :: MonadIO m => V2 Int -> Bool -> m CellArray
-newCellArray v b = liftIO $ do
-  V.replicateM (v ^. _x) $ do
-    v <- V.new (v ^. _y)
-    V.set v b
-    return v
+newCellArray :: MonadIO m => V2 Int -> m CellArray
+newCellArray size = liftIO $ do
+  vec <- VM.new (size^._x * size^._y)
+  VM.set vec False
+  return $ CellArray vec size
 
-readCell :: (MonadIO m) => CellArray -> V2 Int -> m Bool
-readCell arr v = liftIO $ (\vec -> V.read vec (v ^. _y)) =<< V.read arr (v ^. _x)
+readCell :: MonadIO m => CellArray -> V2 Int -> m Bool
+readCell (CellArray arr size) v = liftIO $ do
+  let index = v^._x + v^._y * (size^._x)
+  VM.read arr index
 
-modifyCell :: (MonadIO m) => CellArray -> V2 Int -> (Bool -> Bool) -> m ()
-modifyCell arr v f = liftIO $ do
-  vec <- V.read arr (v ^. _x)
-  V.modify vec f (v ^. _y)
+modifyCell :: MonadIO m => CellArray -> V2 Int -> (Bool -> Bool) -> m ()
+modifyCell (CellArray arr size) v f = liftIO $ do
+  let index = v^._x + v^._y * (size^._x)
+  VM.modify arr f index
 
 cloneCellArray :: MonadIO m => CellArray -> m CellArray
-cloneCellArray arr = liftIO $ do
-  index <- newIORef 0
-  V.replicateM (V.length arr) $ do
-    i <- readIORef index
-    v <- V.read arr i
-    modifyIORef index (+1)
-    V.clone v
+cloneCellArray (CellArray arr size) = liftIO $ VM.clone arr >>= \arr' -> return (CellArray arr' size)
+
+randomGenCellArray :: MonadIO m => CellArray -> m ()
+randomGenCellArray (CellArray arr size) = liftIO $ withSystemRandom $ \gen -> do
+  vec <- uniformVector gen (VM.length arr `div` 5) :: IO (V.Vector Int)
+  forM_ (V.toList vec) $ \v -> do
+    VM.modify arr not (v `mod` VM.length arr)
 
 instance Component UI "app" where
-  type ModelParam "app" =
-    Record '[ "boardSize" >: V2 Int, "cellSize" >: V2 Int ]
-
+  type ModelParam "app" = Record '[ "boardSize" >: V2 Int, "cellSize" >: V2 Int ]
   data Model "app" = AppModel
-    { board :: CellArray
-    , boardSize :: V2 Int
+    { boardSize :: V2 Int
     , cellSize :: V2 Int
+    , cellArray :: CellArray
     , margin :: V2 Int
     , stepButton :: ComponentView "button"
+    , genButton :: ComponentView "button"
     }
   data Signal "app"
 
-  newModel p = do
-    let size = p ^. #boardSize
-    vec <- newCellArray size False
-
+  newModel param = do
+    cells <- newCellArray (param ^. #boardSize)
     stepButton <- new @"button" $
       #label @= "Step"
-      <: #size @= V2 100 40
+      <: #size @= V2 80 40
+      <: nil
+    genButton <- new @"button" $
+      #label @= "Generate"
+      <: #size @= V2 140 40
       <: nil
     register stepButton
+    register genButton
 
     return $ AppModel
-      { board = vec
-      , boardSize = size
-      , cellSize = p ^. #cellSize
-      , margin = V2 100 100
+      { boardSize = param ^. #boardSize
+      , cellSize = param ^. #cellSize
+      , cellArray = cells
+      , margin = V2 50 70
       , stepButton = stepButton
+      , genButton = genButton
       }
 
   initComponent self = do
     b <- use builtIn
 
+    let model = getModel self
     addWatchSignal self $ watch b $ \_ -> \case
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
-        model <- get
-        let mp = fmap fromEnum v - margin model
-        let pos = V2 (mp^._x `div` cellSize model^._x) (mp^._y `div` cellSize model^._y)
-        when (0 <= pos && pos < boardSize model - 1) $ liftIO $ do
-          modifyCell (board model) pos not
+        let pos = div <$> (fmap fromEnum v - fmap fromEnum (margin model)) <*> (cellSize model)
+        when (inRange (0, boardSize model - 1) pos) $ do
+          modifyCell (cellArray model) pos not
       _ -> return ()
 
-    let model = getModel self
     addWatchSignal self $ watch (stepButton model) $ \_ -> \case
       Button.Click -> do
         model <- get
-        prev <- cloneCellArray (board model)
-        forM_ [(x,y) | x <- [0..boardSize model^._x - 1], y <- [0..boardSize model^._y - 1]] $ \(x,y) -> lift $ do
-          neighbors <- mapM (readCell prev) [V2 (x+dx) (y+dy) | dx <- [-1,0,1], dy <- [-1,0,1], (dx,dy) /= (0,0), inRange (0,boardSize model - 1) (V2 (x+dx) (y+dy))]
-          modifyCell (board model) (V2 x y) $ \current -> case (current, length (filter id neighbors)) of
+        prev <- cloneCellArray (cellArray model)
+
+        forM_ [V2 x y | x <- [0..boardSize model^._x - 1], y <- [0..boardSize model^._y - 1]] $ \v -> do
+          neighbors <- mapM (readCell prev)
+            [v + V2 dx dy | dx <- [-1,0,1], dy <- [-1,0,1], (dx,dy) /= (0,0), inRange (0, boardSize model - 1) (v + V2 dx dy)]
+          modifyCell (cellArray model) v $ \current -> case (current, length (filter id neighbors)) of
             (False, 3) -> True
-            (True, 2) -> True
-            (True, 3) -> True
+            (True, n) | n == 2 || n == 3 -> True
             _ -> False
 
+    addWatchSignal self $ watch (genButton model) $ \_ -> \case
+      Button.Click -> do
+        model <- get
+        randomGenCellArray (cellArray model)
+
   getGraphical model = do
-    boardGraphical <- forM [(x,y) | x <- [0..boardSize model^._x - 1], y <- [0..boardSize model^._y - 1]] $ \(x,y) -> do
-      active <- readCell (board model) (V2 x y)
+    cellGraphicals <- forM [V2 x y | x <- [0..boardSize model^._x - 1], y <- [0..boardSize model^._y - 1]] $ \v -> do
+      cell <- readCell (cellArray model) v
 
-      return $ colored (V4 0 0 0 255) $ translate (V2 (toEnum x) (toEnum y)) $
-        rectangleWith (#fill @= active <: nil) (V2 0 0) (V2 1 1)
+      return $ translate (fmap toEnum v) $
+        rectangleWith (#fill @= cell <: nil) (V2 0 0) (V2 1 1)
 
-    stepBtn <- view $ stepButton model
+    stepButtonView <- view $ stepButton model
+    genButtonView <- view $ genButton model
 
-    return $ graphics
-      [ translate (V2 50 50) $ text "Game of Life"
-      , translate (fmap toEnum $ margin model) $ gridLayout (fmap toEnum $ V2 (cellSize model ^. _x) (cellSize model ^. _y)) $ graphics $ boardGraphical
-      , translate (V2 200 400) $ stepBtn
+    return $ graphics $
+      [ translate (V2 20 20) $ text "Game of Life"
+      , translate (fmap toEnum $ margin model) $ gridLayout (fmap toEnum $ cellSize model) $ graphics cellGraphicals
+      , translate (V2 20 400) $ stepButtonView
+      , translate (V2 110 400) $ genButtonView
       ]
 
 main = runUI $ do
-  setClearColor (V4 255 255 255 255)
-  app <- new @"app" (#boardSize @= V2 15 15 <: #cellSize @= V2 20 20 <: nil)
+  app <- new @"app" $
+    #boardSize @= V2 15 15
+    <: #cellSize @= V2 20 20
+    <: nil
   register app
 
   mainloop [asRoot app]

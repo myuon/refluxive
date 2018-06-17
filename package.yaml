@@ -47,6 +47,7 @@ dependencies:
 - vector
 - containers
 - text
+- mwc-random
 
 library:
   source-dirs: src
