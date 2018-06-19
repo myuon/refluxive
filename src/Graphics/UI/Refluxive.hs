@@ -124,7 +124,7 @@ makeLenses ''UIState
 instance Component UI "builtin" where
   type ModelParam "builtin" = ()
   data Model "builtin" = BuiltInModel
-  data Signal "builtin" = BuiltInSignal SDL.Event
+  data Signal "builtin" = BuiltInSignal SDL.Event | TickSignal
 
   newModel () = return BuiltInModel
   getGraphical = error "unimplemented"
@@ -195,7 +195,8 @@ mainloop root = do
     pushEvent es b $ BuiltInSignal ev
 
   -- event handling
-  use eventStream >>= pullEvents >>= \evs -> forM_ evs $ \(src, SomeSignal signal) -> do
+  b <- use builtIn
+  use eventStream >>= pullEvents >>= \evs -> forM_ (makeEvent b TickSignal : evs) $ \(src, SomeSignal signal) -> do
     callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
 
     r <- use registry
