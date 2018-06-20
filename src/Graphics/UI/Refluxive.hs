@@ -290,7 +290,7 @@ fromModel model = do
 
   return $ ComponentView
     { model = model
-    , name = uid model ++ show (hashUnique uniq)
+    , name = prefix model ++ show (hashUnique uniq)
     , renderStateRef = renderRef
     }
 

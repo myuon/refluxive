@@ -8,6 +8,7 @@ module Graphics.UI.Refluxive.Component
   , ComponentView(..)
   , Watcher(..)
   , getModel
+  , prefix
   ) where
 
 import qualified SDL as SDL
@@ -35,6 +36,9 @@ data ComponentView a
 getModel :: ComponentView a -> Model a
 getModel cp = model cp
 
+prefix :: Component m a => proxy a -> String
+prefix = symbolVal
+
 -- | Component type
 class KnownSymbol a => Component m a | a -> m where
   -- | Parameter, passing to the constructor
@@ -45,9 +49,6 @@ class KnownSymbol a => Component m a | a -> m where
 
   -- | Signal datatype
   data family Signal a
-
-  uid :: proxy a -> String
-  uid = symbolVal
 
   -- | Creating new model from 'ModelParam', it is called internally in new function
   newModel :: MonadIO m => ModelParam a -> m (Model a)
