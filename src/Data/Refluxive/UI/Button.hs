@@ -35,7 +35,7 @@ instance Component UI "button" where
     }
 
   initComponent self = do
-    b <- use builtIn
+    b <- use _builtIn
 
     addWatchSignal self $ watch b $ \rs -> \case
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do

@@ -9,7 +9,7 @@ module Graphics.UI.Refluxive
   , getModel
 
   , Signal(..)
-  , builtIn
+  , _builtIn
 
   , UI
   , runUI
@@ -182,8 +182,8 @@ initialize = do
 asRoot :: Component UI a => ComponentView a -> SomeComponent
 asRoot = SomeComponent
 
-builtIn :: Lens' UIState (ComponentView "builtin")
-builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
+_builtIn :: Lens' UIState (ComponentView "builtin")
+_builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
 
 mainloop :: [SomeComponent] -> UI ()
 mainloop root = do
@@ -195,7 +195,7 @@ mainloop root = do
     pushEvent es b $ BuiltInSignal ev
 
   -- event handling
-  b <- use builtIn
+  b <- use _builtIn
   use eventStream >>= pullEvents >>= \evs -> forM_ (makeEvent b TickSignal : evs) $ \(src, SomeSignal signal) -> do
     callbacks <- fmap (\d -> if M.member src d then d M.! src else []) $ use distributer
 

@@ -22,7 +22,7 @@ instance Component UI "text-form" where
   newModel p = return (TextformModel "" (p ^. #placeholder))
 
   initComponent self = do
-    b <- use builtIn
+    b <- use _builtIn
 
     addWatchSignal self $ watch b $ \_ -> \case
       BuiltInSignal (SDL.Event _ (SDL.TextInputEvent (SDL.TextInputEventData _ txt))) -> do
@@ -52,7 +52,7 @@ instance Component UI "checkbox" where
   newModel () = return $ CheckBoxModel False
 
   initComponent self = do
-    b <- use builtIn
+    b <- use _builtIn
 
     addWatchSignal self $ watch b $ \rs -> \case
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
@@ -104,7 +104,7 @@ instance Component UI "app" where
       }
 
   initComponent self = do
-    b <- use builtIn
+    b <- use _builtIn
     let model = getModel self
 
     addWatchSignal self $ watch (textform model) $ \_ -> \case

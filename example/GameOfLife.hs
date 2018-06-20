@@ -111,7 +111,7 @@ instance Component UI "app" where
       }
 
   initComponent self = do
-    b <- use builtIn
+    b <- use _builtIn
 
     let model = getModel self
     addWatchSignal self $ watch b $ \_ -> \case

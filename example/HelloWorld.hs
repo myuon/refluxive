@@ -18,7 +18,7 @@ instance Component UI "counter" where
   newModel () = return (CounterModel 0)
 
   initComponent self = do
-    b <- use builtIn
+    b <- use _builtIn
 
     addWatchSignal self $ watch b $ \_ -> \case
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (P pos)))) -> do
