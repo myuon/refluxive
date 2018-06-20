@@ -35,9 +35,15 @@ text :: Text -> Graphical
 
 -- | Scaling function, useful to place objects in grid
 gridLayout :: Pos -> Graphical -> Graphical
-rectangle :: Pos -> Pos -> Graphical
 
 -- | Rectangle object
+--   
+--   <pre>
+--   rectangle == rectangleWith nil
+--   </pre>
+rectangle :: Pos -> Pos -> Graphical
+
+-- | Rectangle object with shape style
 rectangleWith :: IncludeAssoc ShapeStyle xs => Record xs -> Pos -> Pos -> Graphical
 
 -- | Shape style for rectangles
@@ -98,7 +104,7 @@ getModel :: ComponentView a -> Model a
 -- | Refluxive framework
 module Graphics.UI.Refluxive
 
--- | UI monad, where many operations can perform
+-- | UI monad
 data UI a
 
 -- | Running UI monad
@@ -160,7 +166,6 @@ getModel :: ComponentView a -> Model a
 
 -- | A lens to focus on builtIn component
 _builtIn :: Lens' UIState (ComponentView "builtin")
-fromModel :: Component UI a => Model a -> UI (ComponentView a)
 
 -- | Constructor of a component
 new :: Component UI a => ModelParam a -> UI (ComponentView a)

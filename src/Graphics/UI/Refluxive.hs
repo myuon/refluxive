@@ -36,7 +36,6 @@ module Graphics.UI.Refluxive
   , _builtIn
 
   -- * Operations on component
-  , fromModel
   , new
   , view
   , operateModel

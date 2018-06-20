@@ -130,7 +130,7 @@ text = Text
 gridLayout :: SDL.Pos -> Graphical -> Graphical
 gridLayout = GridLayout
 
--- | Rectangle object
+-- | Rectangle object with shape style
 rectangleWith :: IncludeAssoc ShapeStyle xs
               => Record xs -- ^ shape style
               -> SDL.Pos -- ^ top-left coordinate
@@ -141,7 +141,9 @@ rectangleWith cfg = Rectangle (hmergeAssoc cfg defShapeStyle)
     hmergeAssoc :: (IncludeAssoc ys xs, Wrapper h) => h :* xs -> h :* ys -> h :* ys
     hmergeAssoc hx hy = hfoldrWithIndex (\xin x hy -> hy & itemAt (hlookup xin inclusionAssoc) .~ x^._Wrapper) hy hx
 
--- > 'rectangle' == 'rectangleWith' nil
+-- | Rectangle object
+--
+-- > rectangle == rectangleWith nil
 rectangle :: SDL.Pos -> SDL.Pos -> Graphical
 rectangle = rectangleWith nil
 
