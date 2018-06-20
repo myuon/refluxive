@@ -7,73 +7,168 @@
 @package refluxive
 @version 0.1.0.0
 
+
+-- | Provides graphical functions
 module Graphics.UI.Refluxive.Graphical
+
+-- | <a>Graphical</a> object can be displayed on screen with <a>render</a>
 data Graphical
+
+-- | A rendering context
 data RenderState
 RenderState :: Color -> Pos -> Pos -> RenderState
 [color] :: RenderState -> Color
 [coordinate] :: RenderState -> Pos
 [scaler] :: RenderState -> Pos
+
+-- | Default rendering state
 defRenderState :: RenderState
-empty :: Graphical
-text :: Text -> Graphical
-gridLayout :: Pos -> Graphical -> Graphical
-rectangle :: Pos -> Pos -> Graphical
-rectangleWith :: IncludeAssoc ShapeStyle xs => Record xs -> Pos -> Pos -> Graphical
-colored :: Color -> Graphical -> Graphical
-translate :: Pos -> Graphical -> Graphical
-graphics :: [Graphical] -> Graphical
-clip :: Pos -> Graphical -> Graphical
-viewInfo :: String -> Graphical -> Graphical
+
+-- | A function to draw <a>Graphical</a> objects
 render :: MonadIO m => Color -> Maybe Font -> Renderer -> Graphical -> (RenderState -> String -> m ()) -> m ()
 
+-- | Empty object
+empty :: Graphical
+
+-- | Text object (font family and size is currently hard-coded)
+text :: Text -> Graphical
+
+-- | Scaling function, useful to place objects in grid
+gridLayout :: Pos -> Graphical -> Graphical
+rectangle :: Pos -> Pos -> Graphical
+
+-- | Rectangle object
+rectangleWith :: IncludeAssoc ShapeStyle xs => Record xs -> Pos -> Pos -> Graphical
+
+-- | Shape style for rectangles
+type ShapeStyle = ["fill" >: Bool, "rounded" >: Maybe Int]
+
+-- | Coloring function
+colored :: Color -> Graphical -> Graphical
+
+-- | Coordinate translating function
+translate :: Pos -> Graphical -> Graphical
+
+-- | Many graphical objects
+graphics :: [Graphical] -> Graphical
+
+-- | Clipping function
+clip :: Pos -> Graphical -> Graphical
+
+-- | Tagging id with given graphical (like CSS id)
+viewInfo :: String -> Graphical -> Graphical
+
+
+-- | UI Components
 module Graphics.UI.Refluxive.Component
+
+-- | Component type
 class KnownSymbol a => Component m a | a -> m where {
     type family ModelParam a;
     data family Model a;
     data family Signal a;
 }
 uid :: Component m a => proxy a -> String
+
+-- | Creating new model from <a>ModelParam</a>, it is called internally in
+--   new function
 newModel :: (Component m a, MonadIO m) => ModelParam a -> m (Model a)
+
+-- | Initialize function, it is called internally after new function
 initComponent :: (Component m a, MonadIO m) => ComponentView a -> m ()
+
+-- | Projecting model to view
 getGraphical :: (Component m a, MonadIO m) => Model a -> m Graphical
+
+-- | An instance for Component
 data ComponentView a
 ComponentView :: Model a -> String -> IORef RenderState -> ComponentView a
 [model] :: ComponentView a -> Model a
 [name] :: ComponentView a -> String
 [renderStateRef] :: ComponentView a -> IORef RenderState
+
+-- | Watcher type with context <tt>m</tt> and target ui name <tt>tgt</tt>
 data Watcher m tgt
 Watcher :: (ComponentView src) -> (RenderState -> Signal src -> StateT (Model tgt) m ()) -> Watcher m tgt
+
+-- | Get current model
 getModel :: ComponentView a -> Model a
 
+
+-- | Refluxive framework
 module Graphics.UI.Refluxive
+
+-- | UI monad, where many operations can perform
+data UI a
+
+-- | Running UI monad
+runUI :: UI () -> IO ()
+
+-- | Start a mainloop, render given components as root
+mainloop :: [SomeComponent] -> UI ()
+
+-- | Register a ComponentView to refluxive framework
+register :: Component UI a => ComponentView a -> UI ()
+
+-- | Emit a signal from a component
+emit :: Component UI a => ComponentView a -> Signal a -> UI ()
+
+-- | Watcher function
+watch :: (Component UI src, Component UI tgt) => ComponentView src -> (RenderState -> Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
+
+-- | A function which is used for passing to mainloop
+asRoot :: Component UI a => ComponentView a -> SomeComponent
+
+-- | Set background color
+setClearColor :: Color -> UI ()
+
+-- | Add a watch signal
+addWatchSignal :: Component UI tgt => ComponentView tgt -> Watcher UI tgt -> UI ()
+
+-- | Quit the mainloop
+quit :: UI ()
+
+-- | Register a graphical object to raw component
+rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
+
+-- | Component type
 class KnownSymbol a => Component m a | a -> m where {
     type family ModelParam a;
     data family Model a;
     data family Signal a;
 }
 uid :: Component m a => proxy a -> String
+
+-- | Creating new model from <a>ModelParam</a>, it is called internally in
+--   new function
 newModel :: (Component m a, MonadIO m) => ModelParam a -> m (Model a)
+
+-- | Initialize function, it is called internally after new function
 initComponent :: (Component m a, MonadIO m) => ComponentView a -> m ()
+
+-- | Projecting model to view
 getGraphical :: (Component m a, MonadIO m) => Model a -> m Graphical
+
+-- | An instance for Component
 data ComponentView a
+
+-- | Watcher type with context <tt>m</tt> and target ui name <tt>tgt</tt>
 data Watcher m tgt
+
+-- | Get current model
 getModel :: ComponentView a -> Model a
-builtIn :: Lens' UIState (ComponentView "builtin")
-data UI a
-runUI :: UI () -> IO ()
-register :: Component UI a => ComponentView a -> UI ()
-emit :: Component UI a => ComponentView a -> Signal a -> UI ()
-watch :: (Component UI src, Component UI tgt) => ComponentView src -> (RenderState -> Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
-asRoot :: Component UI a => ComponentView a -> SomeComponent
-mainloop :: [SomeComponent] -> UI ()
-rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
-setClearColor :: Color -> UI ()
-addWatchSignal :: Component UI tgt => ComponentView tgt -> Watcher UI tgt -> UI ()
-quit :: UI ()
+
+-- | A lens to focus on builtIn component
+_builtIn :: Lens' UIState (ComponentView "builtin")
 fromModel :: Component UI a => Model a -> UI (ComponentView a)
+
+-- | Constructor of a component
 new :: Component UI a => ModelParam a -> UI (ComponentView a)
+
+-- | Get the view with current snapshot of model
 view :: (Component UI a) => ComponentView a -> UI Graphical
+
+-- | Modify internal model of a component
 operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI () -> UI ()
 instance Graphics.UI.Refluxive.Component.Component Graphics.UI.Refluxive.UI "builtin"
 instance Control.Monad.State.Class.MonadState Graphics.UI.Refluxive.UIState Graphics.UI.Refluxive.UI
@@ -83,7 +178,11 @@ instance GHC.Base.Monad Graphics.UI.Refluxive.UI
 instance GHC.Base.Applicative Graphics.UI.Refluxive.UI
 instance GHC.Base.Functor Graphics.UI.Refluxive.UI
 
+
+-- | Button widget
 module Data.Refluxive.UI.Button
+
+-- | internal state
 data ButtonState
 None :: ButtonState
 Hover :: ButtonState

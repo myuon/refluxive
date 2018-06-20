@@ -1,21 +1,27 @@
 {-# LANGUAGE TypeOperators, OverloadedLabels, FlexibleContexts, PolyKinds #-}
+{-|
+  Provides graphical functions
+-}
 module Graphics.UI.Refluxive.Graphical
-  ( Graphical
+  (
+  -- * Graphical types
+    Graphical
   , RenderState(..)
   , defRenderState
+  , render
 
+  -- * Drawing functions
   , empty
   , text
   , gridLayout
   , rectangle
   , rectangleWith
+  , ShapeStyle
   , colored
   , translate
   , graphics
   , clip
   , viewInfo
-
-  , render
   ) where
 
 import qualified SDL as SDL
@@ -30,6 +36,7 @@ import Data.Maybe
 import Foreign.C.Types
 import System.Mem
 
+-- | Shape style for rectangles
 type ShapeStyle =
   [ "fill" >: Bool
   , "rounded" >: Maybe Int
@@ -41,6 +48,7 @@ defShapeStyle
   <: #rounded @= Nothing
   <: nil
 
+-- | 'Graphical' object can be displayed on screen with 'render'
 data Graphical
   = Empty
   | GridLayout SDL.Pos Graphical
@@ -52,6 +60,7 @@ data Graphical
   | Clip SDL.Pos Graphical
   | ViewInfo String Graphical
 
+-- | A rendering context
 data RenderState
   = RenderState
   { color :: SDL.Color
@@ -59,6 +68,7 @@ data RenderState
   , scaler :: SDL.Pos
   }
 
+-- | Default rendering state
 defRenderState :: RenderState
 defRenderState
   = RenderState
@@ -67,7 +77,14 @@ defRenderState
   , scaler = SDL.V2 1 1
   }
 
-render :: MonadIO m => SDLF.Color -> Maybe SDLF.Font -> SDL.Renderer -> Graphical -> (RenderState -> String -> m ()) -> m ()
+-- | A function to draw 'Graphical' objects
+render :: MonadIO m
+       => SDLF.Color -- ^ clearColor (__not a rendering color__)
+       -> Maybe SDLF.Font -- ^ font data
+       -> SDL.Renderer -- ^ current renderer
+       -> Graphical -- ^ object to render
+       -> (RenderState -> String -> m ()) -- ^ tagging function which is used in Components
+       -> m ()
 render clearColor mfont renderer g cont = go defRenderState g >> liftIO performGC where
   go st Empty = return ()
   go st (GridLayout s g) = go (st { scaler = s }) g
@@ -101,36 +118,50 @@ render clearColor mfont renderer g cont = go defRenderState g >> liftIO performG
     SDL.copy renderer texture Nothing (Just $ SDL.Rectangle (SDL.P (coordinate st)) size)
   go st (ViewInfo v g) = cont st v >> go st g
 
+-- | Empty object
 empty :: Graphical
 empty = Empty
 
+-- | Text object (font family and size is currently hard-coded)
 text :: T.Text -> Graphical
 text = Text
 
+-- | Scaling function, useful to place objects in grid
 gridLayout :: SDL.Pos -> Graphical -> Graphical
 gridLayout = GridLayout
 
-rectangleWith :: IncludeAssoc ShapeStyle xs => Record xs -> SDL.Pos -> SDL.Pos -> Graphical
+-- | Rectangle object
+rectangleWith :: IncludeAssoc ShapeStyle xs
+              => Record xs -- ^ shape style
+              -> SDL.Pos -- ^ top-left coordinate
+              -> SDL.Pos -- ^ size
+              -> Graphical
 rectangleWith cfg = Rectangle (hmergeAssoc cfg defShapeStyle)
   where
     hmergeAssoc :: (IncludeAssoc ys xs, Wrapper h) => h :* xs -> h :* ys -> h :* ys
     hmergeAssoc hx hy = hfoldrWithIndex (\xin x hy -> hy & itemAt (hlookup xin inclusionAssoc) .~ x^._Wrapper) hy hx
 
+-- > 'rectangle' == 'rectangleWith' nil
 rectangle :: SDL.Pos -> SDL.Pos -> Graphical
 rectangle = rectangleWith nil
 
+-- | Coloring function
 colored :: SDL.Color -> Graphical -> Graphical
 colored = Colored
 
+-- | Coordinate translating function
 translate :: SDL.Pos -> Graphical -> Graphical
 translate = Translate
 
+-- | Many graphical objects
 graphics :: [Graphical] -> Graphical
 graphics = Graphics
 
+-- | Clipping function
 clip :: SDL.Pos -> Graphical -> Graphical
 clip = Clip
 
+-- | Tagging id with given graphical (like CSS id)
 viewInfo :: String -> Graphical -> Graphical
 viewInfo = ViewInfo
 

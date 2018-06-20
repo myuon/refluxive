@@ -1,4 +1,12 @@
-module Data.Refluxive.UI.Button where
+{-|
+  Button widget
+-}
+module Data.Refluxive.UI.Button
+  (
+    ButtonState(..)
+  , Signal(..)
+  , Model(..)
+  ) where
 
 import qualified SDL as SDL
 import qualified SDL.Primitive as SDLP
@@ -11,6 +19,7 @@ import qualified Data.Text as T
 import Data.Extensible
 import Graphics.UI.Refluxive
 
+-- | internal state
 data ButtonState = None | Hover | Clicking
   deriving Eq
 

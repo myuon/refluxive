@@ -1,28 +1,41 @@
+{-|
+  Refluxive framework
+-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
 module Graphics.UI.Refluxive
-  ( module Graphics.UI.Refluxive.Graphical
+  (
+  -- * UI monad
+  UI
+  , runUI
+  , mainloop
 
+  , register
+  , emit
+  , watch
+  , asRoot
+  , setClearColor
+  , addWatchSignal
+  , quit
+
+  -- * Component "raw"
+  , rawGraphical
+
+
+  -- * Re-exports
+  , module Graphics.UI.Refluxive.Graphical
+
+  -- * Component types
   , Component(..)
   , ComponentView
   , Watcher
   , getModel
 
+  -- * Signal
   , Signal(..)
   , _builtIn
 
-  , UI
-  , runUI
-  , register
-  , emit
-  , watch
-  , asRoot
-  , mainloop
-  , rawGraphical
-  , setClearColor
-  , addWatchSignal
-  , quit
-
+  -- * Operations on component
   , fromModel
   , new
   , view
@@ -103,7 +116,9 @@ makeEvent cp s = (name cp, SomeSignal s)
 pullEvents :: MonadIO m => EventStream -> m [(String, SomeSignal)]
 pullEvents stream = liftIO $ fmap reverse $ swapMVar (getEventStream stream) []
 
+-- | UI monad
 newtype UI a = UI { unpackUI :: StateT UIState IO a } deriving (Functor, Applicative, Monad, MonadIO)
+
 data SomeComponent = forall a. Component UI a => SomeComponent (ComponentView a)
 data SomeCallback = forall a b. (Component UI a, Component UI b) => SomeCallback String (RenderState -> Signal a -> StateT (Model b) UI ())
 
@@ -132,6 +147,7 @@ instance Component UI "builtin" where
 instance MonadState UIState UI where
   state = UI . state
 
+-- | Running UI monad
 runUI :: UI () -> IO ()
 runUI m = do
   SDL.initializeAll
@@ -147,18 +163,21 @@ runUI m = do
     <*> pure False
     <*> pure Nothing
 
+-- | Set background color
 setClearColor :: SDLF.Color -> UI ()
 setClearColor c = do
   r <- use renderer
   clearColor .= c
   SDL.rendererDrawColor r SDL.$= c
 
+-- | Register a ComponentView to refluxive framework
 register :: Component UI a => ComponentView a -> UI ()
 register cp = do
   reg <- use registry
   (_, reg') <- liftIO $ pushRegistry (name cp) (SomeComponent cp) reg
   registry .= reg'
 
+-- | Emit a signal from a component
 emit :: Component UI a => ComponentView a -> Signal a -> UI ()
 emit cp s = use eventStream >>= \es -> liftIO (pushEvent es cp s)
 
@@ -169,6 +188,7 @@ clear = do
   SDL.rendererDrawColor r SDL.$= c
   SDL.clear r
 
+-- | Quit the mainloop
 quit :: UI ()
 quit = isQuit .= True
 
@@ -179,12 +199,15 @@ initialize = do
   builtIn' .= Just b
   register b
 
+-- | A function which is used for passing to mainloop
 asRoot :: Component UI a => ComponentView a -> SomeComponent
 asRoot = SomeComponent
 
+-- | A lens to focus on builtIn component
 _builtIn :: Lens' UIState (ComponentView "builtin")
 _builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
 
+-- | Start a mainloop, render given components as root
 mainloop :: [SomeComponent] -> UI ()
 mainloop root = do
   -- poll sdl events
@@ -236,9 +259,11 @@ mainloop root = do
   SDLF.quit
   SDL.quit
 
+-- | Watcher function
 watch :: (Component UI src, Component UI tgt) => ComponentView src -> (RenderState -> Signal src -> StateT (Model tgt) UI ()) -> Watcher UI tgt
 watch = Watcher
 
+-- | Add a watch signal
 addWatchSignal :: Component UI tgt => ComponentView tgt -> Watcher UI tgt -> UI ()
 addWatchSignal cp (w@(Watcher srcCp callback)) = do
   let src = name srcCp
@@ -255,6 +280,7 @@ instance Component UI "raw" where
 
   getGraphical (RawModel g) = return g
 
+-- | Register a graphical object to raw component
 rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
 rawGraphical cp g = cp { model = RawModel g }
 
@@ -269,12 +295,14 @@ fromModel model = do
     , renderStateRef = renderRef
     }
 
+-- | Get the view with current snapshot of model
 view :: (Component UI a) => ComponentView a -> UI Graphical
 view cp = do
   r <- use registry
   SomeComponent cp <- getRegistryByUID (name cp) r
   viewInfo (name cp) <$> getGraphical (model cp)
 
+-- | Modify internal model of a component
 operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI () -> UI ()
 operateModel cp f = do
   r <- use registry
@@ -282,6 +310,7 @@ operateModel cp f = do
     model' <- flip execStateT (model cp) $ unsafeCoerce f
     return $ SomeComponent $ cp { model = model' }
 
+-- | Constructor of a component
 new :: Component UI a => ModelParam a -> UI (ComponentView a)
 new p = do
   cp <- fromModel =<< newModel p
