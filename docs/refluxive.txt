@@ -137,6 +137,9 @@ quit :: UI ()
 -- | Register a graphical object to raw component
 rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
 
+-- | A lens to focus on builtIn component
+_builtIn :: Lens' UIState (ComponentView "builtin")
+
 -- | Component type
 class KnownSymbol a => Component m a | a -> m where {
     type family ModelParam a;
@@ -162,9 +165,6 @@ data Watcher m tgt
 
 -- | Get current model
 getModel :: ComponentView a -> Model a
-
--- | A lens to focus on builtIn component
-_builtIn :: Lens' UIState (ComponentView "builtin")
 
 -- | Constructor of a component
 new :: Component UI a => ModelParam a -> UI (ComponentView a)

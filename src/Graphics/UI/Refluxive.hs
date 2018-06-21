@@ -18,27 +18,34 @@ module Graphics.UI.Refluxive
   , addWatchSignal
   , quit
 
-  -- * Component "raw"
+  -- * Component
+
+  -- ** Raw Component
+  --
+  -- | Raw component is a component of static picture with no signal
+  --
+  -- @Component UI "raw"@ has Graphical value as model
   , rawGraphical
 
-
-  -- * Re-exports
-  , module Graphics.UI.Refluxive.Graphical
+  -- ** Built-in Component
+  --
+  -- | Built-in component is a component which emits SDL events as 'BuiltInSignal'
+  , _builtIn
 
   -- * Component types
   , Component(..)
   , ComponentView
   , Watcher
   , getModel
-
-  -- * Signal
   , Signal(..)
-  , _builtIn
 
   -- * Operations on component
   , new
   , view
   , operateModel
+
+  -- * Re-exports
+  , module Graphics.UI.Refluxive.Graphical
   ) where
 
 import qualified SDL as SDL
