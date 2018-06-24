@@ -113,9 +113,10 @@ instance Component UI "app" where
   initComponent self = do
     b <- use _builtIn
 
-    let model = getModel self
+    model <- getModel self
     addWatchSignal self $ watch b $ \_ -> \case
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
+        model <- getModel self
         let pos = div <$> (fmap fromEnum v - fmap fromEnum (margin model)) <*> (cellSize model)
         when (inRange (0, boardSize model - 1) pos) $ do
           modifyCell (cellArray model) pos not

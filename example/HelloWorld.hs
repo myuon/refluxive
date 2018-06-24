@@ -45,7 +45,7 @@ main = runUI $ do
   register counter
 
   raw <- new @"raw" ()
-  register $ rawGraphical raw $ graphics $
+  rawGraphical raw $ graphics $
     [ gridLayout (V2 50 50) $ translate (V2 2 2) $ graphics $
       [ colored (V4 30 30 30 255) $ graphics $
         [ rectangle (V2 0 0) (V2 1 1)

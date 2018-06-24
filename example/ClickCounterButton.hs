@@ -34,8 +34,7 @@ instance Component UI "click-counter" where
       }
 
   initComponent self = do
-    let model = getModel self
-
+    model <- getModel self
     addWatchSignal self $ watch (button model) $ \_ -> \case
       Button.Click -> do
         modify $ \model -> model { counter = counter model + 1 }

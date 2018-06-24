@@ -35,7 +35,7 @@ instance Component UI "text-form" where
         put $ model { content = "" }
       _ -> return ()
 
-  getGraphical (TextformModel txt placeholder) =
+  getGraphical (TextformModel txt placeholder) = do
     return $ clip (V2 300 50) $ graphics
       [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 300 50)
       , translate (V2 5 13) $
@@ -58,14 +58,20 @@ instance Component UI "checkbox" where
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
         when (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + V2 30 30) (fmap fromEnum v)) $ do
           modify $ \(CheckBoxModel b) -> CheckBoxModel (not b)
+
+          CheckBoxModel b <- get
+          lift $ emit self $ Changed b
       _ -> return ()
 
-  getGraphical (CheckBoxModel b) =
+  getGraphical (CheckBoxModel b) = do
     return $ graphics
       [ if b
         then colored (V4 50 150 50 255) $ text "✓"
         else colored (V4 200 200 200 255) $ text "□"
       ]
+
+getCheckState :: MonadIO m => ComponentView "checkbox" -> m Bool
+getCheckState m = fmap (\(CheckBoxModel b) -> b) $ getModel m
 
 instance Component UI "item-checklist" where
   type ModelParam "item-checklist" = ()
@@ -74,13 +80,23 @@ instance Component UI "item-checklist" where
 
   newModel () = return $ ItemListModel []
 
+  initComponent self = do
+    addWatchSignal self $ watch self $ \_ -> \case
+      AddItem item -> do
+        checkbox <- lift $ new @"checkbox" ()
+        lift $ register checkbox
+
+        modify $ \(ItemListModel xs) -> ItemListModel ((checkbox, item) : xs)
+
   getGraphical (ItemListModel xs) = do
     fmap graphics $ forM (zip [0..] xs) $ \(i, (checkbox, content)) -> do
       checkboxView <- view $ checkbox
+      checkState <- getCheckState checkbox
 
       return $ translate (V2 0 (i * 30)) $ graphics
         [ translate (V2 0 0) $ checkboxView
-        , translate (V2 30 0) $ text content
+        , translate (V2 30 0) $
+          colored (if checkState then V4 255 100 100 255 else V4 0 0 0 255) $ text content
         ]
 
 instance Component UI "app" where
@@ -105,16 +121,12 @@ instance Component UI "app" where
 
   initComponent self = do
     b <- use _builtIn
-    let model = getModel self
+    model <- getModel self
 
     addWatchSignal self $ watch (textform model) $ \_ -> \case
       CreateItem item -> do
         model <- get
-        lift $ operateModel (itemlist model) $ do
-          checkbox <- lift $ new @"checkbox" ()
-          lift $ register checkbox
-
-          modify $ \(ItemListModel xs) -> ItemListModel ((checkbox, item) : xs)
+        lift $ emit (itemlist model) $ AddItem item
 
     addWatchSignal self $ watch b $ \rs -> \case
       BuiltInSignal (SDL.Event _ (SDL.KeyboardEvent (SDL.KeyboardEventData _ SDL.Pressed _ (SDL.Keysym _ SDL.KeycodeEscape _)))) ->
