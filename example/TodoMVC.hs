@@ -96,8 +96,23 @@ instance Component UI "item-checklist" where
       return $ translate (V2 0 (i * 30)) $ graphics
         [ translate (V2 0 0) $ checkboxView
         , translate (V2 30 0) $
-          colored (if checkState then V4 255 100 100 255 else V4 0 0 0 255) $ text content
+          if checkState
+          then colored (V4 100 100 100 255) $ textWith (#styles @= [Strikethrough] <: nil) content
+          else colored (V4 0 0 0 255) $ text content
         ]
+
+getItemCount :: MonadIO m => ComponentView "item-checklist" -> m Int
+getItemCount m = fmap (\(ItemListModel xs) -> length xs) $ getModel m
+
+getUndoneItemCount :: MonadIO m => ComponentView "item-checklist" -> m Int
+getUndoneItemCount m = do
+  ItemListModel model <- getModel m
+  fmap length $ filterM (\(c,_) -> getCheckState c) model
+
+getDoneItemCount :: MonadIO m => ComponentView "item-checklist" -> m Int
+getDoneItemCount m = do
+  ItemListModel model <- getModel m
+  fmap length $ filterM (\(c,_) -> fmap not $ getCheckState c) model
 
 instance Component UI "app" where
   type ModelParam "app" = ()
@@ -137,9 +152,15 @@ instance Component UI "app" where
     textformView <- view $ textform model
     itemlistView <- view $ itemlist model
 
+    itemCount <- getItemCount (itemlist model)
+    doneItemCount <- getDoneItemCount (itemlist model)
+
     return $ translate (V2 50 50) $ graphics $
       [ textformView
-      , translate (V2 0 50) itemlistView
+      , translate (V2 5 60) itemlistView
+      , if doneItemCount > 0
+        then translate (V2 0 (60 + toEnum itemCount * 30)) $ text $ T.pack (show doneItemCount) `T.append` " items left"
+        else empty
       ]
 
 main :: IO ()
