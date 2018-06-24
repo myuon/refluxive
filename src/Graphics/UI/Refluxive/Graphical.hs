@@ -12,11 +12,16 @@ module Graphics.UI.Refluxive.Graphical
 
   -- * Drawing functions
   , empty
+  , lineTo
+  , relLineTo
   , text
+  , textWith
+  , TextStyle
   , gridLayout
   , rectangle
   , rectangleWith
   , ShapeStyle
+  , SDLF.Style(..)
   , colored
   , translate
   , graphics
@@ -36,10 +41,15 @@ import Data.Maybe
 import Foreign.C.Types
 import System.Mem
 
--- | Shape style for rectangles
+-- | Shape style for 'rectangle' object
 type ShapeStyle =
   [ "fill" >: Bool
   , "rounded" >: Maybe Int
+  ]
+
+-- | Text style for 'text' object
+type TextStyle =
+  '[ "styles" >: [SDLF.Style]
   ]
 
 defShapeStyle :: Record ShapeStyle
@@ -56,9 +66,11 @@ data Graphical
   | Colored SDL.Color Graphical
   | Translate SDL.Pos Graphical
   | Graphics [Graphical]
-  | Text T.Text
+  | Text [SDLF.Style] T.Text
   | Clip SDL.Pos Graphical
   | ViewInfo String Graphical
+  | LineTo SDL.Pos SDL.Pos
+  | RelLineTo SDL.Pos SDL.Pos
 
 -- | A rendering context
 data RenderState
@@ -99,8 +111,9 @@ render clearColor mfont renderer g cont = go defRenderState g >> liftIO performG
   go st (Colored color g) = go (st { color = color }) g
   go st (Translate p g) = go (st { coordinate = coordinate st + p * scaler st }) g
   go st (Graphics gs) = mapM_ (go st) gs
-  go st (Text txt) | T.null txt = return ()
-  go st (Text txt) = do
+  go st (Text styles txt) | T.null txt = return ()
+  go st (Text styles txt) = do
+    SDLF.setStyle (fromJust mfont) styles
     surface <- SDLF.blended (fromJust mfont) (color st) txt
     texture <- SDL.createTextureFromSurface renderer surface
     SDL.textureBlendMode texture SDL.$= SDL.BlendAlphaBlend
@@ -117,18 +130,35 @@ render clearColor mfont renderer g cont = go defRenderState g >> liftIO performG
     SDL.rendererRenderTarget renderer SDL.$= Nothing
     SDL.copy renderer texture Nothing (Just $ SDL.Rectangle (SDL.P (coordinate st)) size)
   go st (ViewInfo v g) = cont st v >> go st g
+  go st (LineTo p q) = SDL.smoothLine renderer (coordinate st + p) (coordinate st + q) (color st)
+  go st (RelLineTo p q) = SDL.smoothLine renderer (coordinate st + p) (coordinate st + p + q) (color st)
 
 -- | Empty object
 empty :: Graphical
 empty = Empty
 
+hmergeAssoc :: (IncludeAssoc ys xs, Wrapper h) => h :* xs -> h :* ys -> h :* ys
+hmergeAssoc hx hy = hfoldrWithIndex (\xin x hy -> hy & itemAt (hlookup xin inclusionAssoc) .~ x^._Wrapper) hy hx
+
 -- | Text object (font family and size is currently hard-coded)
 text :: T.Text -> Graphical
-text = Text
+text = textWith nil
+
+-- | Text object with text style
+textWith :: IncludeAssoc TextStyle xs => Record xs -> T.Text -> Graphical
+textWith param = Text (hmergeAssoc param (#styles @= [] <: nil) ^. #styles)
 
 -- | Scaling function, useful to place objects in grid
 gridLayout :: SDL.Pos -> Graphical -> Graphical
 gridLayout = GridLayout
+
+-- | Line object
+lineTo :: SDL.Pos -> SDL.Pos -> Graphical
+lineTo = LineTo
+
+-- | Line object, as target position is calculated relatively
+relLineTo :: SDL.Pos -> SDL.Pos -> Graphical
+relLineTo = RelLineTo
 
 -- | Rectangle object with shape style
 rectangleWith :: IncludeAssoc ShapeStyle xs
@@ -137,9 +167,6 @@ rectangleWith :: IncludeAssoc ShapeStyle xs
               -> SDL.Pos -- ^ size
               -> Graphical
 rectangleWith cfg = Rectangle (hmergeAssoc cfg defShapeStyle)
-  where
-    hmergeAssoc :: (IncludeAssoc ys xs, Wrapper h) => h :* xs -> h :* ys -> h :* ys
-    hmergeAssoc hx hy = hfoldrWithIndex (\xin x hy -> hy & itemAt (hlookup xin inclusionAssoc) .~ x^._Wrapper) hy hx
 
 -- | Rectangle object
 --
