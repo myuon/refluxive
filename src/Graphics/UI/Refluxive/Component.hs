@@ -27,14 +27,14 @@ data Watcher m tgt = forall src. (Component m src, Component m tgt) =>
 -- | An instance for Component
 data ComponentView a
   = ComponentView
-  { model :: Model a
+  { modelRef :: IORef (Model a)
   , name :: String
   , renderStateRef :: IORef RenderState
   }
 
 -- | Get current model
-getModel :: ComponentView a -> Model a
-getModel cp = model cp
+getModel :: MonadIO m => ComponentView a -> m (Model a)
+getModel cp = liftIO $ readIORef (modelRef cp)
 
 prefix :: Component m a => proxy a -> String
 prefix = symbolVal

@@ -230,10 +230,12 @@ mainloop root = do
 
     r <- use registry
     forM_ callbacks $ \(SomeCallback tgt cb) -> do
-      modifyMRegistryByUID tgt r $ \(SomeComponent cp) -> do
-        rs <- liftIO $ readIORef $ renderStateRef cp
-        model' <- flip execStateT (model cp) $ unsafeCoerce cb rs signal
-        return $ SomeComponent $ cp { model = model' }
+      getRegistryByUID tgt r >>= \case
+        (SomeComponent cp) -> do
+          rs <- liftIO $ readIORef $ renderStateRef cp
+          model <- getModel cp
+          model' <- flip execStateT model $ unsafeCoerce cb rs signal
+          liftIO $ writeIORef (modelRef cp) model'
 
   -- clear
   clear
@@ -287,18 +289,20 @@ instance Component UI "raw" where
   getGraphical (RawModel g) = return g
 
 -- | Register a graphical object to raw component
-rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
-rawGraphical cp g = cp { model = RawModel g }
+-- | This will override the previous graphical
+rawGraphical :: ComponentView "raw" -> Graphical -> UI ()
+rawGraphical cp g = operateModel cp $ modify $ \(RawModel _) -> RawModel g
 
 fromModel :: Component UI a => Model a -> UI (ComponentView a)
 fromModel model = do
   uniq <- liftIO newUnique
+  modelRef <- liftIO $ newIORef model
   renderRef <- liftIO $ newIORef defRenderState
 
   return $ ComponentView
-    { model = model
-    , name = prefix model ++ show (hashUnique uniq)
+    { name = prefix model ++ show (hashUnique uniq)
     , renderStateRef = renderRef
+    , modelRef = modelRef
     }
 
 -- | Get the view with current snapshot of model
@@ -306,15 +310,18 @@ view :: (Component UI a) => ComponentView a -> UI Graphical
 view cp = do
   r <- use registry
   SomeComponent cp <- getRegistryByUID (name cp) r
-  viewInfo (name cp) <$> getGraphical (model cp)
+  model <- getModel cp
+  viewInfo (name cp) <$> getGraphical model
 
 -- | Modify internal model of a component
 operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI () -> UI ()
 operateModel cp f = do
   r <- use registry
-  modifyMRegistryByUID (name cp) r $ \(SomeComponent cp) -> do
-    model' <- flip execStateT (model cp) $ unsafeCoerce f
-    return $ SomeComponent $ cp { model = model' }
+  getRegistryByUID (name cp) r >>= \case
+    SomeComponent cp -> do
+      model <- getModel cp
+      model' <- flip execStateT model $ unsafeCoerce f
+      liftIO $ writeIORef (modelRef cp) model
 
 -- | Constructor of a component
 new :: Component UI a => ModelParam a -> UI (ComponentView a)
