@@ -1,11 +1,17 @@
 {-|
   Button widget
 -}
+{-# LANGUAGE CPP #-}
 module Data.Refluxive.UI.Button
   (
-    ButtonState(..)
-  , Signal(..)
-  , Model(..)
+  -- * Model
+  label
+  , size
+  , buttonState
+  , ButtonState(..)
+
+  -- * Event
+  , onClick
   ) where
 
 import qualified SDL as SDL
@@ -19,9 +25,25 @@ import qualified Data.Text as T
 import Data.Extensible
 import Graphics.UI.Refluxive
 
--- | internal state
+-- | Internal state
 data ButtonState = None | Hover | Clicking
   deriving Eq
+
+-- | Click event listener for button component
+onClick :: Component UI tgt => ComponentView "button" -> ComponentView tgt -> (RenderState -> StateT (Model tgt) UI ()) -> UI ()
+onClick btn tgt callback = addWatchSignal tgt $ watch btn $ \rs -> \case
+  Click -> callback rs
+
+#define MAKE_LENS(label,type,new_name,name) new_name :: Lens' (Model label) type; new_name = lens name (\s a -> s { name = a })
+
+-- | Button Label
+MAKE_LENS("button",T.Text,label,_label)
+
+-- | Button Size
+MAKE_LENS("button",SDLP.Pos,size,_size)
+
+-- | 'ButtonState'
+MAKE_LENS("button",ButtonState,buttonState,_buttonState)
 
 instance Component UI "button" where
   type ModelParam "button" = Record
@@ -30,17 +52,17 @@ instance Component UI "button" where
     ]
 
   data Model "button" = ButtonModel
-    { label :: T.Text
-    , size :: SDLP.Pos
-    , buttonState :: ButtonState
+    { _label :: T.Text
+    , _size :: SDLP.Pos
+    , _buttonState :: ButtonState
     }
 
   data Signal "button" = Click
 
   newModel param = return $ ButtonModel
-    { label = param ^. #label
-    , size = param ^. #size
-    , buttonState = None
+    { _label = param ^. #label
+    , _size = param ^. #size
+    , _buttonState = None
     }
 
   initComponent self = do
@@ -49,25 +71,27 @@ instance Component UI "button" where
     addWatchSignal self $ watch b $ \rs -> \case
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
         model <- get
-        when (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + size model) (fmap fromEnum v)) $ do
-          modify $ \model -> model { buttonState = Clicking }
+        when (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + model^.size) (fmap fromEnum v)) $ do
+          buttonState .= Clicking
           lift $ emit self Click
       BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Released _ SDL.ButtonLeft _ (SDL.P v)))) -> do
         model <- get
-        if (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + size model) (fmap fromEnum v))
-          then modify $ \model -> model { buttonState = Hover }
-          else modify $ \model -> model { buttonState = None }
+        if (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + model^.size) (fmap fromEnum v))
+          then buttonState .= Hover
+          else buttonState .= None
       BuiltInSignal (SDL.Event _ (SDL.MouseMotionEvent (SDL.MouseMotionEventData _ _ _ (SDL.P v) _))) -> do
         model <- get
-        if (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + size model) (fmap fromEnum v))
-          then modify $ \model -> model { buttonState = Hover }
-          else modify $ \model -> model { buttonState = None }
+        if (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + model^.size) (fmap fromEnum v))
+          then buttonState .= Hover
+          else buttonState .= None
       _ -> return ()
 
   getGraphical model = do
     return $ graphics $
-      [ colored (if buttonState model == Hover then V4 220 220 220 255 else V4 200 200 200 255) $ rectangle (V2 0 0) (size model)
-      , colored (V4 0 0 0 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (size model)
-      , translate (V2 10 5) $ text $ label model
+      [ colored (if model^.buttonState == Hover then V4 220 220 220 255 else V4 200 200 200 255) $ rectangle (V2 0 0) (model^.size)
+      , colored (V4 0 0 0 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (model^.size)
+      , translate (V2 10 5) $ text $ model^.label
       ]
+
+
 
