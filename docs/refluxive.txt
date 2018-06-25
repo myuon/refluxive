@@ -30,8 +30,20 @@ render :: MonadIO m => Color -> Maybe Font -> Renderer -> Graphical -> (RenderSt
 -- | Empty object
 empty :: Graphical
 
+-- | Line object
+lineTo :: Pos -> Pos -> Graphical
+
+-- | Line object, as target position is calculated relatively
+relLineTo :: Pos -> Pos -> Graphical
+
 -- | Text object (font family and size is currently hard-coded)
 text :: Text -> Graphical
+
+-- | Text object with text style
+textWith :: IncludeAssoc TextStyle xs => Record xs -> Text -> Graphical
+
+-- | Text style for <a>text</a> object
+type TextStyle = '["styles" >: [Style]]
 
 -- | Scaling function, useful to place objects in grid
 gridLayout :: Pos -> Graphical -> Graphical
@@ -46,8 +58,15 @@ rectangle :: Pos -> Pos -> Graphical
 -- | Rectangle object with shape style
 rectangleWith :: IncludeAssoc ShapeStyle xs => Record xs -> Pos -> Pos -> Graphical
 
--- | Shape style for rectangles
+-- | Shape style for <a>rectangle</a> object
 type ShapeStyle = ["fill" >: Bool, "rounded" >: Maybe Int]
+
+-- | Possible styles that can be applied to a <a>Font</a>.
+data Style :: *
+Bold :: Style
+Italic :: Style
+Underline :: Style
+Strikethrough :: Style
 
 -- | Coloring function
 colored :: Color -> Graphical -> Graphical
@@ -87,8 +106,8 @@ getGraphical :: (Component m a, MonadIO m) => Model a -> m Graphical
 
 -- | An instance for Component
 data ComponentView a
-ComponentView :: Model a -> String -> IORef RenderState -> ComponentView a
-[model] :: ComponentView a -> Model a
+ComponentView :: IORef (Model a) -> String -> IORef RenderState -> ComponentView a
+[modelRef] :: ComponentView a -> IORef (Model a)
 [name] :: ComponentView a -> String
 [renderStateRef] :: ComponentView a -> IORef RenderState
 
@@ -97,7 +116,7 @@ data Watcher m tgt
 Watcher :: (ComponentView src) -> (RenderState -> Signal src -> StateT (Model tgt) m ()) -> Watcher m tgt
 
 -- | Get current model
-getModel :: ComponentView a -> Model a
+getModel :: MonadIO m => ComponentView a -> m (Model a)
 prefix :: Component m a => proxy a -> String
 
 
@@ -134,8 +153,9 @@ addWatchSignal :: Component UI tgt => ComponentView tgt -> Watcher UI tgt -> UI 
 -- | Quit the mainloop
 quit :: UI ()
 
--- | Register a graphical object to raw component
-rawGraphical :: ComponentView "raw" -> Graphical -> ComponentView "raw"
+-- | Register a graphical object to raw component | This will override the
+--   previous graphical
+rawGraphical :: ComponentView "raw" -> Graphical -> UI ()
 
 -- | A lens to focus on builtIn component
 _builtIn :: Lens' UIState (ComponentView "builtin")
@@ -164,7 +184,7 @@ data ComponentView a
 data Watcher m tgt
 
 -- | Get current model
-getModel :: ComponentView a -> Model a
+getModel :: MonadIO m => ComponentView a -> m (Model a)
 
 -- | Constructor of a component
 new :: Component UI a => ModelParam a -> UI (ComponentView a)
@@ -186,10 +206,22 @@ instance GHC.Base.Functor Graphics.UI.Refluxive.UI
 -- | Button widget
 module Data.Refluxive.UI.Button
 
--- | internal state
+-- | Button Label
+label :: Lens' (Model "button") Text
+
+-- | Button Size
+size :: Lens' (Model "button") Pos
+
+-- | <a>ButtonState</a>
+buttonState :: Lens' (Model "button") ButtonState
+
+-- | Internal state
 data ButtonState
 None :: ButtonState
 Hover :: ButtonState
 Clicking :: ButtonState
+
+-- | Click event listener for button component
+onClick :: Component UI tgt => ComponentView "button" -> ComponentView tgt -> (RenderState -> StateT (Model tgt) UI ()) -> UI ()
 instance GHC.Classes.Eq Data.Refluxive.UI.Button.ButtonState
 instance Graphics.UI.Refluxive.Component.Component Graphics.UI.Refluxive.UI "button"
