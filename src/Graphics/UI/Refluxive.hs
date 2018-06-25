@@ -314,14 +314,15 @@ view cp = do
   viewInfo (name cp) <$> getGraphical model
 
 -- | Modify internal model of a component
-operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI () -> UI ()
+operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI r -> UI r
 operateModel cp f = do
   r <- use registry
   getRegistryByUID (name cp) r >>= \case
     SomeComponent cp -> do
       model <- getModel cp
-      model' <- flip execStateT model $ unsafeCoerce f
-      liftIO $ writeIORef (modelRef cp) model
+      (result, model') <- flip runStateT model $ unsafeCoerce f
+      liftIO $ writeIORef (modelRef cp) model'
+      return result
 
 -- | Constructor of a component
 new :: Component UI a => ModelParam a -> UI (ComponentView a)
