@@ -35,11 +35,10 @@ instance Component UI "click-counter" where
 
   initComponent self = do
     model <- getModel self
-    addWatchSignal self $ watch (button model) $ \_ -> \case
-      Button.Click -> do
-        modify $ \model -> model { counter = counter model + 1 }
-        c <- fmap counter get
-        lift $ operateModel (button model) $ modify $ \bmodel -> bmodel { Button.label = "You clicked " `T.append` T.pack (show c) `T.append` " times!" }
+    Button.onClick (button model) self $ \_ -> do
+      modify $ \model -> model { counter = counter model + 1 }
+      c <- fmap counter get
+      lift $ operateModel (button model) $ Button.label .= "You clicked " `T.append` T.pack (show c) `T.append` " times!"
 
   getGraphical model = view $ button model
 

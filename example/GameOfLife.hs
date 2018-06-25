@@ -127,29 +127,25 @@ instance Component UI "app" where
           _ -> return ()
       _ -> return ()
 
-    addWatchSignal self $ watch (stepButton model) $ \_ -> \case
-      Button.Click -> step
+    Button.onClick (stepButton model) self $ \_ -> step
 
-    addWatchSignal self $ watch (genButton model) $ \_ -> \case
-      Button.Click -> do
-        model <- get
-        randomGenCellArray (cellArray model)
+    Button.onClick (genButton model) self $ \_ -> do
+      model <- get
+      randomGenCellArray (cellArray model)
 
-    addWatchSignal self $ watch (runButton model) $ \_ -> \case
-      Button.Click -> do
-        model <- get
-        case appState model of
-          Stop -> do
-            lift $ operateModel (runButton model) $ modify $ \m -> m { Button.label = "Stop" }
-            put $ model { appState = Running }
-          Running -> do
-            lift $ operateModel (runButton model) $ modify $ \m -> m { Button.label = "Run" }
-            put $ model { appState = Stop }
+    Button.onClick (runButton model) self $ \_ -> do
+      model <- get
+      case appState model of
+        Stop -> do
+          lift $ operateModel (runButton model) $ Button.label .= "Stop"
+          put $ model { appState = Running }
+        Running -> do
+          lift $ operateModel (runButton model) $ Button.label .= "Run"
+          put $ model { appState = Stop }
 
-    addWatchSignal self $ watch (clearButton model) $ \_ -> \case
-      Button.Click -> do
-        model <- get
-        clearCellArray (cellArray model)
+    Button.onClick (clearButton model) self $ \_ -> do
+      model <- get
+      clearCellArray (cellArray model)
 
   getGraphical model = do
     cellGraphicals <- forM [V2 x y | x <- [0..boardSize model^._x - 1], y <- [0..boardSize model^._y - 1]] $ \v -> do
