@@ -1,5 +1,5 @@
 {-|
-  Button widget
+  Button component
 -}
 {-# LANGUAGE CPP #-}
 module Data.Refluxive.UI.Button
@@ -34,7 +34,7 @@ onClick :: Component UI tgt => ComponentView "button" -> ComponentView tgt -> (R
 onClick btn tgt callback = addWatchSignal tgt $ watch btn $ \rs -> \case
   Click -> callback rs
 
-#define MAKE_LENS(label,type,new_name,name) new_name :: Lens' (Model label) type; new_name = lens name (\s a -> s { name = a })
+#include "macro.h"
 
 -- | Button Label
 MAKE_LENS("button",T.Text,label,_label)
