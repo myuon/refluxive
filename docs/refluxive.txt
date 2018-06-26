@@ -193,7 +193,7 @@ new :: Component UI a => ModelParam a -> UI (ComponentView a)
 view :: (Component UI a) => ComponentView a -> UI Graphical
 
 -- | Modify internal model of a component
-operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI () -> UI ()
+operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI r -> UI r
 instance Graphics.UI.Refluxive.Component.Component Graphics.UI.Refluxive.UI "builtin"
 instance Control.Monad.State.Class.MonadState Graphics.UI.Refluxive.UIState Graphics.UI.Refluxive.UI
 instance Graphics.UI.Refluxive.Component.Component Graphics.UI.Refluxive.UI "raw"
@@ -203,7 +203,20 @@ instance GHC.Base.Applicative Graphics.UI.Refluxive.UI
 instance GHC.Base.Functor Graphics.UI.Refluxive.UI
 
 
--- | Button widget
+-- | Checkbox component
+module Data.Refluxive.UI.Checkbox
+
+-- | Checkbox state (checked? or not)
+checkState :: Lens' (Model "checkbox") Bool
+
+-- | Change event listener for checkbox component | The third argument is a
+--   callback, which recieves <a>RenderState</a> and current
+--   (after-changed) checkbox state
+onChanged :: Component UI tgt => ComponentView "checkbox" -> ComponentView tgt -> (RenderState -> Bool -> StateT (Model tgt) UI ()) -> UI ()
+instance Graphics.UI.Refluxive.Component.Component Graphics.UI.Refluxive.UI "checkbox"
+
+
+-- | Button component
 module Data.Refluxive.UI.Button
 
 -- | Button Label
