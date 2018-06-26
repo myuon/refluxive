@@ -9,6 +9,7 @@ import Control.Lens hiding (view)
 import Data.Extensible
 import Data.Ix (inRange)
 import qualified Data.Text as T
+import qualified Data.Refluxive.UI.Checkbox as Checkbox
 import Graphics.UI.Refluxive
 
 instance Component UI "text-form" where
@@ -44,35 +45,6 @@ instance Component UI "text-form" where
         else colored (V4 0 0 0 255) $ text $ txt `T.append` "■"
       ]
 
-instance Component UI "checkbox" where
-  type ModelParam "checkbox" = ()
-  data Model "checkbox" = CheckBoxModel Bool
-  data Signal "checkbox" = Changed Bool
-
-  newModel () = return $ CheckBoxModel False
-
-  initComponent self = do
-    b <- use _builtIn
-
-    addWatchSignal self $ watch b $ \rs -> \case
-      BuiltInSignal (SDL.Event _ (SDL.MouseButtonEvent (SDL.MouseButtonEventData _ SDL.Pressed _ SDL.ButtonLeft _ (SDL.P v)))) -> do
-        when (inRange (fmap fromEnum $ coordinate rs, fmap fromEnum $ coordinate rs + V2 30 30) (fmap fromEnum v)) $ do
-          modify $ \(CheckBoxModel b) -> CheckBoxModel (not b)
-
-          CheckBoxModel b <- get
-          lift $ emit self $ Changed b
-      _ -> return ()
-
-  getGraphical (CheckBoxModel b) = do
-    return $ graphics
-      [ if b
-        then colored (V4 50 150 50 255) $ text "✓"
-        else colored (V4 200 200 200 255) $ text "□"
-      ]
-
-getCheckState :: MonadIO m => ComponentView "checkbox" -> m Bool
-getCheckState m = fmap (\(CheckBoxModel b) -> b) $ getModel m
-
 instance Component UI "item-checklist" where
   type ModelParam "item-checklist" = ()
   data Model "item-checklist" = ItemListModel [(ComponentView "checkbox", T.Text)]
@@ -91,7 +63,7 @@ instance Component UI "item-checklist" where
   getGraphical (ItemListModel xs) = do
     fmap graphics $ forM (zip [0..] xs) $ \(i, (checkbox, content)) -> do
       checkboxView <- view $ checkbox
-      checkState <- getCheckState checkbox
+      checkState <- fmap (^. Checkbox.checkState) $ getModel checkbox
 
       return $ translate (V2 0 (i * 30)) $ graphics
         [ translate (V2 0 0) $ checkboxView
@@ -107,12 +79,12 @@ getItemCount m = fmap (\(ItemListModel xs) -> length xs) $ getModel m
 getUndoneItemCount :: MonadIO m => ComponentView "item-checklist" -> m Int
 getUndoneItemCount m = do
   ItemListModel model <- getModel m
-  fmap length $ filterM (\(c,_) -> getCheckState c) model
+  fmap length $ filterM (\(c,_) -> fmap (^. Checkbox.checkState) $ getModel c) model
 
 getDoneItemCount :: MonadIO m => ComponentView "item-checklist" -> m Int
 getDoneItemCount m = do
   ItemListModel model <- getModel m
-  fmap length $ filterM (\(c,_) -> fmap not $ getCheckState c) model
+  fmap length $ filterM (\(c,_) -> fmap (not . (^. Checkbox.checkState)) $ getModel c) model
 
 instance Component UI "app" where
   type ModelParam "app" = ()
