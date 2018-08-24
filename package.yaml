@@ -94,5 +94,15 @@ executables:
     - -main-is GameOfLife
     dependencies:
     - refluxive
+  example-material-design:
+    main:                MaterialUI.hs
+    source-dirs:         example
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -main-is MaterialUI
+    dependencies:
+    - refluxive
 
 

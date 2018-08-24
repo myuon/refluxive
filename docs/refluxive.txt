@@ -7,6 +7,10 @@
 @package refluxive
 @version 0.1.0.0
 
+module Data.Material.UI.Foundation.Color
+
+module Data.Material.UI.Foundation.Grid
+
 
 -- | Provides graphical functions
 module Graphics.UI.Refluxive.Graphical
@@ -240,4 +244,7 @@ size_ :: ModelParam "button" -> Pos
 -- | Click event listener for button component
 onClick :: Component UI tgt => ComponentView "button" -> ComponentView tgt -> (RenderState -> StateT (Model tgt) UI ()) -> UI ()
 instance GHC.Classes.Eq Data.Refluxive.UI.Button.ButtonState
+instance Graphics.UI.Refluxive.Component.Component Graphics.UI.Refluxive.UI "button"
+
+module Data.Material.UI.Component.Button
 instance Graphics.UI.Refluxive.Component.Component Graphics.UI.Refluxive.UI "button"
