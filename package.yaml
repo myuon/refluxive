@@ -25,6 +25,7 @@ default-extensions:
 - OverloadedLabels
 - TypeOperators
 - OverloadedStrings
+- PatternSynonyms
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -42,12 +43,11 @@ dependencies:
 - sdl2-gfx
 - linear
 - mtl
-- extensible
-- lens
 - vector
 - containers
 - text
 - mwc-random
+- lens
 
 library:
   source-dirs: src

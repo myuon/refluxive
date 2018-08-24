@@ -7,7 +7,6 @@ import SDL.Vect
 import Control.Lens hiding (view)
 import Control.Monad
 import Control.Monad.State
-import Data.Extensible
 import Data.Ix (inRange)
 import qualified Data.Text as T
 import qualified Data.Refluxive.UI.Button as Button
@@ -22,10 +21,10 @@ instance Component UI "click-counter" where
   data Signal "click-counter"
 
   newModel () = do
-    button <- new @"button" $
-      #label @= "Click me!"
-      <: #size @= V2 250 40
-      <: nil
+    button <- new @"button" $ Button.ModelParam
+      { Button.label_ = "Click me!"
+      , Button.size_ = V2 250 40
+      }
     register button
 
     return $ ClickCounterModel

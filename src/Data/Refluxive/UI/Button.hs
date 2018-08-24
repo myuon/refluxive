@@ -9,6 +9,9 @@ module Data.Refluxive.UI.Button
   , size
   , buttonState
   , ButtonState(..)
+  , pattern ModelParam
+  , label_
+  , size_
 
   -- * Event
   , onClick
@@ -22,7 +25,6 @@ import Control.Monad
 import Control.Monad.State
 import Data.Ix (inRange)
 import qualified Data.Text as T
-import Data.Extensible
 import Graphics.UI.Refluxive
 
 -- | Internal state
@@ -34,7 +36,7 @@ onClick :: Component UI tgt => ComponentView "button" -> ComponentView tgt -> (R
 onClick btn tgt callback = addWatchSignal tgt $ watch btn $ \rs -> \case
   Click -> callback rs
 
-#include "macro.h"
+#include "./macro.h"
 
 -- | Button Label
 MAKE_LENS("button",T.Text,label,_label)
@@ -45,11 +47,11 @@ MAKE_LENS("button",SDLP.Pos,size,_size)
 -- | 'ButtonState'
 MAKE_LENS("button",ButtonState,buttonState,_buttonState)
 
+pattern ModelParam :: T.Text -> SDLP.Pos -> ModelParam "button"
+pattern ModelParam{ label_, size_ } = (label_, size_)
+
 instance Component UI "button" where
-  type ModelParam "button" = Record
-    [ "label" >: T.Text
-    , "size" >: SDLP.Pos
-    ]
+  type ModelParam "button" = (T.Text, SDLP.Pos)
 
   data Model "button" = ButtonModel
     { _label :: T.Text
@@ -60,8 +62,8 @@ instance Component UI "button" where
   data Signal "button" = Click
 
   newModel param = return $ ButtonModel
-    { _label = param ^. #label
-    , _size = param ^. #size
+    { _label = param ^. _1
+    , _size = param ^. _2
     , _buttonState = None
     }
 
@@ -89,7 +91,7 @@ instance Component UI "button" where
   getGraphical model = do
     return $ graphics $
       [ colored (if model^.buttonState == Hover then V4 220 220 220 255 else V4 200 200 200 255) $ rectangle (V2 0 0) (model^.size)
-      , colored (V4 0 0 0 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (model^.size)
+      , colored (V4 0 0 0 255) $ rectangleWith (ShapeStyle { fill = False, rounded = Nothing }) (V2 0 0) (model^.size)
       , translate (V2 10 5) $ text $ model^.label
       ]
 

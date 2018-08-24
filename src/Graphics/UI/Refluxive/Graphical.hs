@@ -16,11 +16,12 @@ module Graphics.UI.Refluxive.Graphical
   , relLineTo
   , text
   , textWith
-  , TextStyle
+  , pattern TextStyle, fill, rounded
   , gridLayout
   , rectangle
   , rectangleWith
-  , ShapeStyle
+  , pattern ShapeStyle, styles
+  , defShapeStyle
   , SDLF.Style(..)
   , colored
   , translate
@@ -33,40 +34,36 @@ import qualified SDL as SDL
 import qualified SDL.Primitive as SDL
 import qualified SDL.Font as SDLF
 import Linear.V2
-import Control.Lens ((^.), (.~), (&))
 import Control.Monad.Trans
-import Data.Extensible
 import qualified Data.Text as T
 import Data.Maybe
 import Foreign.C.Types
 import System.Mem
 
+newtype ShapeStyleType = ShapeStyleType (Bool, Maybe Int)
+
 -- | Shape style for 'rectangle' object
-type ShapeStyle =
-  [ "fill" >: Bool
-  , "rounded" >: Maybe Int
-  ]
+pattern ShapeStyle :: Bool -> Maybe Int -> ShapeStyleType
+pattern ShapeStyle{ fill, rounded } = ShapeStyleType (fill, rounded)
+
+defShapeStyle :: ShapeStyleType
+defShapeStyle = ShapeStyle { fill = True, rounded = Nothing }
+
+newtype TextStyleType = TextStyleType [SDLF.Style]
 
 -- | Text style for 'text' object
-type TextStyle =
-  '[ "styles" >: [SDLF.Style]
-  ]
-
-defShapeStyle :: Record ShapeStyle
-defShapeStyle
-  = #fill @= True
-  <: #rounded @= Nothing
-  <: nil
+pattern TextStyle :: [SDLF.Style] -> TextStyleType
+pattern TextStyle { styles } = TextStyleType styles
 
 -- | 'Graphical' object can be displayed on screen with 'render'
 data Graphical
   = Empty
   | GridLayout SDL.Pos Graphical
-  | Rectangle (Record ShapeStyle) SDL.Pos SDL.Pos
+  | Rectangle ShapeStyleType SDL.Pos SDL.Pos
   | Colored SDL.Color Graphical
   | Translate SDL.Pos Graphical
   | Graphics [Graphical]
-  | Text [SDLF.Style] T.Text
+  | Text TextStyleType T.Text
   | Clip SDL.Pos Graphical
   | ViewInfo String Graphical
   | LineTo SDL.Pos SDL.Pos
@@ -103,7 +100,7 @@ render clearColor mfont renderer g cont = go defRenderState g >> liftIO performG
   go st (Rectangle style pos size) = do
     let topLeft = pos * scaler st + coordinate st
     let bottomRight = (pos + size) * scaler st + coordinate st
-    case (style ^. #fill, fmap toEnum $ style ^. #rounded) of
+    case (fill style, fmap toEnum $ rounded style) of
       (True, Just r) -> SDL.fillRoundRectangle renderer topLeft bottomRight r (color st)
       (True, Nothing) -> SDL.fillRectangle renderer topLeft bottomRight (color st)
       (False, Just r) -> SDL.roundRectangle renderer topLeft bottomRight r (color st)
@@ -112,8 +109,8 @@ render clearColor mfont renderer g cont = go defRenderState g >> liftIO performG
   go st (Translate p g) = go (st { coordinate = coordinate st + p * scaler st }) g
   go st (Graphics gs) = mapM_ (go st) gs
   go st (Text styles txt) | T.null txt = return ()
-  go st (Text styles txt) = do
-    SDLF.setStyle (fromJust mfont) styles
+  go st (Text ts txt) = do
+    SDLF.setStyle (fromJust mfont) (styles ts)
     surface <- SDLF.blended (fromJust mfont) (color st) txt
     texture <- SDL.createTextureFromSurface renderer surface
     SDL.textureBlendMode texture SDL.$= SDL.BlendAlphaBlend
@@ -137,16 +134,13 @@ render clearColor mfont renderer g cont = go defRenderState g >> liftIO performG
 empty :: Graphical
 empty = Empty
 
-hmergeAssoc :: (IncludeAssoc ys xs, Wrapper h) => h :* xs -> h :* ys -> h :* ys
-hmergeAssoc hx hy = hfoldrWithIndex (\xin x hy -> hy & itemAt (hlookup xin inclusionAssoc) .~ x^._Wrapper) hy hx
-
 -- | Text object (font family and size is currently hard-coded)
 text :: T.Text -> Graphical
-text = textWith nil
+text = textWith (TextStyle { styles = [] })
 
 -- | Text object with text style
-textWith :: IncludeAssoc TextStyle xs => Record xs -> T.Text -> Graphical
-textWith param = Text (hmergeAssoc param (#styles @= [] <: nil) ^. #styles)
+textWith :: TextStyleType -> T.Text -> Graphical
+textWith = Text
 
 -- | Scaling function, useful to place objects in grid
 gridLayout :: SDL.Pos -> Graphical -> Graphical
@@ -161,18 +155,17 @@ relLineTo :: SDL.Pos -> SDL.Pos -> Graphical
 relLineTo = RelLineTo
 
 -- | Rectangle object with shape style
-rectangleWith :: IncludeAssoc ShapeStyle xs
-              => Record xs -- ^ shape style
+rectangleWith :: ShapeStyleType -- ^ shape style
               -> SDL.Pos -- ^ top-left coordinate
               -> SDL.Pos -- ^ size
               -> Graphical
-rectangleWith cfg = Rectangle (hmergeAssoc cfg defShapeStyle)
+rectangleWith = Rectangle
 
 -- | Rectangle object
 --
 -- > rectangle == rectangleWith nil
 rectangle :: SDL.Pos -> SDL.Pos -> Graphical
-rectangle = rectangleWith nil
+rectangle = rectangleWith defShapeStyle
 
 -- | Coloring function
 colored :: SDL.Color -> Graphical -> Graphical

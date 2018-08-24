@@ -5,7 +5,6 @@ import SDL.Vect
 import Control.Lens hiding (view)
 import Control.Monad.State
 import Data.Ix (inRange)
-import Data.Extensible
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
 import qualified Data.Refluxive.UI.Button as Button
@@ -60,8 +59,11 @@ step = do
       (True, n) | n == 2 || n == 3 -> True
       _ -> False
 
+pattern ModelParam :: V2 Int -> V2 Int -> ModelParam "app"
+pattern ModelParam{ _boardSize, _cellSize } = (_boardSize, _cellSize)
+
 instance Component UI "app" where
-  type ModelParam "app" = Record '[ "boardSize" >: V2 Int, "cellSize" >: V2 Int ]
+  type ModelParam "app" = (V2 Int, V2 Int)
   data Model "app" = AppModel
     { boardSize :: V2 Int
     , cellSize :: V2 Int
@@ -76,31 +78,31 @@ instance Component UI "app" where
   data Signal "app"
 
   newModel param = do
-    cells <- newCellArray (param ^. #boardSize)
-    stepButton <- new @"button" $
-      #label @= "Step"
-      <: #size @= V2 80 40
-      <: nil
-    runButton <- new @"button" $
-      #label @= "Run"
-      <: #size @= V2 80 40
-      <: nil
-    genButton <- new @"button" $
-      #label @= "Generate"
-      <: #size @= V2 140 40
-      <: nil
-    clearButton <- new @"button" $
-      #label @= "Clear"
-      <: #size @= V2 80 40
-      <: nil
+    cells <- newCellArray (_boardSize param)
+    stepButton <- new @"button" $ Button.ModelParam
+      { Button.label_ = "Step"
+      , Button.size_ = V2 80 40
+      }
+    runButton <- new @"button" $ Button.ModelParam
+      { Button.label_ = "Run"
+      , Button.size_ = V2 80 40
+      }
+    genButton <- new @"button" $ Button.ModelParam
+      { Button.label_ = "Generate"
+      , Button.size_ = V2 80 40
+      }
+    clearButton <- new @"button" $ Button.ModelParam
+      { Button.label_ = "Clear"
+      , Button.size_ = V2 80 40
+      }
     register stepButton
     register runButton
     register genButton
     register clearButton
 
     return $ AppModel
-      { boardSize = param ^. #boardSize
-      , cellSize = param ^. #cellSize
+      { boardSize = _boardSize param
+      , cellSize = _cellSize param
       , cellArray = cells
       , margin = V2 50 70
       , stepButton = stepButton
@@ -152,7 +154,7 @@ instance Component UI "app" where
       cell <- readCell (cellArray model) v
 
       return $ translate (fmap toEnum v) $
-        rectangleWith (#fill @= cell <: nil) (V2 0 0) (V2 1 1)
+        rectangleWith (ShapeStyle { fill = cell, rounded = Nothing }) (V2 0 0) (V2 1 1)
 
     stepButtonView <- view $ stepButton model
     runButtonView <- view $ runButton model
@@ -169,10 +171,10 @@ instance Component UI "app" where
       ]
 
 main = runUI $ do
-  app <- new @"app" $
-    #boardSize @= V2 15 15
-    <: #cellSize @= V2 20 20
-    <: nil
+  app <- new @"app" $ ModelParam
+    { _boardSize = V2 15 15
+    , _cellSize = V2 20 20
+    }
   register app
 
   mainloop [asRoot app]

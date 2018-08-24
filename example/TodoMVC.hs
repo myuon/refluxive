@@ -6,21 +6,23 @@ import SDL.Vect
 import Control.Monad
 import Control.Monad.State
 import Control.Lens hiding (view)
-import Data.Extensible
 import Data.Ix (inRange)
 import qualified Data.Text as T
 import qualified Data.Refluxive.UI.Checkbox as Checkbox
 import Graphics.UI.Refluxive
 
+pattern ModelParam :: T.Text -> ModelParam "text-form"
+pattern ModelParam{ _placeholder } = _placeholder
+
 instance Component UI "text-form" where
-  type ModelParam "text-form" = Record '[ "placeholder" >: T.Text ]
+  type ModelParam "text-form" = T.Text
   data Model "text-form" = TextformModel
     { content :: T.Text
     , placeholder :: T.Text
     }
   data Signal "text-form" = CreateItem T.Text
 
-  newModel p = return (TextformModel "" (p ^. #placeholder))
+  newModel p = return (TextformModel "" (_placeholder p))
 
   initComponent self = do
     b <- use _builtIn
@@ -38,7 +40,7 @@ instance Component UI "text-form" where
 
   getGraphical (TextformModel txt placeholder) = do
     return $ clip (V2 300 50) $ graphics
-      [ colored (V4 200 200 200 255) $ rectangleWith (#fill @= False <: nil) (V2 0 0) (V2 300 50)
+      [ colored (V4 200 200 200 255) $ rectangleWith (defShapeStyle { fill = False }) (V2 0 0) (V2 300 50)
       , translate (V2 5 13) $
         if T.null txt
         then colored (V4 100 100 100 255) $ text $ placeholder
@@ -69,7 +71,7 @@ instance Component UI "item-checklist" where
         [ translate (V2 0 0) $ checkboxView
         , translate (V2 30 0) $
           if checkState
-          then colored (V4 100 100 100 255) $ textWith (#styles @= [Strikethrough] <: nil) content
+          then colored (V4 100 100 100 255) $ textWith (TextStyle { styles = [Strikethrough] }) content
           else colored (V4 0 0 0 255) $ text content
         ]
 
@@ -95,7 +97,7 @@ instance Component UI "app" where
   data Signal "app"
 
   newModel () = do
-    textform <- new @"text-form" (#placeholder @= "What needs to be done?" <: nil)
+    textform <- new @"text-form" (ModelParam { _placeholder = "What needs to be done?" })
     itemlist <- new @"item-checklist" ()
 
     register textform
