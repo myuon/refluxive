@@ -7,7 +7,6 @@ module Graphics.UI.Refluxive.Graphical
   -- * Graphical types
     Graphical
   , RenderState(..)
-  , defRenderState
   , render
 
   -- * Drawing functions
@@ -16,18 +15,19 @@ module Graphics.UI.Refluxive.Graphical
   , relLineTo
   , text
   , textWith
-  , pattern TextStyle, fill, rounded
   , gridLayout
   , rectangle
   , rectangleWith
-  , pattern ShapeStyle, styles
-  , defShapeStyle
   , SDLF.Style(..)
   , colored
   , translate
   , graphics
   , clip
   , viewInfo
+
+  -- * Constructors
+  , pattern TextStyle, fill, rounded
+  , pattern ShapeStyle, styles
   ) where
 
 import qualified SDL as SDL
@@ -37,6 +37,7 @@ import Linear.V2
 import Control.Monad.Trans
 import qualified Data.Text as T
 import Data.Maybe
+import Data.Default
 import Foreign.C.Types
 import System.Mem
 
@@ -46,14 +47,17 @@ newtype ShapeStyleType = ShapeStyleType (Bool, Maybe Int)
 pattern ShapeStyle :: Bool -> Maybe Int -> ShapeStyleType
 pattern ShapeStyle{ fill, rounded } = ShapeStyleType (fill, rounded)
 
-defShapeStyle :: ShapeStyleType
-defShapeStyle = ShapeStyle { fill = True, rounded = Nothing }
+instance Default ShapeStyleType where
+  def = ShapeStyle { fill = True, rounded = Nothing }
 
 newtype TextStyleType = TextStyleType [SDLF.Style]
 
 -- | Text style for 'text' object
 pattern TextStyle :: [SDLF.Style] -> TextStyleType
 pattern TextStyle { styles } = TextStyleType styles
+
+instance Default TextStyleType where
+  def = TextStyle { styles = [] }
 
 -- | 'Graphical' object can be displayed on screen with 'render'
 data Graphical
@@ -77,14 +81,13 @@ data RenderState
   , scaler :: SDL.Pos
   }
 
--- | Default rendering state
-defRenderState :: RenderState
-defRenderState
-  = RenderState
-  { color = SDL.V4 0 0 0 255
-  , coordinate = SDL.V2 0 0
-  , scaler = SDL.V2 1 1
-  }
+instance Default RenderState where
+  def
+    = RenderState
+    { color = SDL.V4 0 0 0 255
+    , coordinate = SDL.V2 0 0
+    , scaler = SDL.V2 1 1
+    }
 
 -- | A function to draw 'Graphical' objects
 render :: MonadIO m
@@ -94,7 +97,7 @@ render :: MonadIO m
        -> Graphical -- ^ object to render
        -> (RenderState -> String -> m ()) -- ^ tagging function which is used in Components
        -> m ()
-render clearColor mfont renderer g cont = go defRenderState g >> liftIO performGC where
+render clearColor mfont renderer g cont = go def g >> liftIO performGC where
   go st Empty = return ()
   go st (GridLayout s g) = go (st { scaler = s }) g
   go st (Rectangle style pos size) = do
@@ -136,7 +139,7 @@ empty = Empty
 
 -- | Text object (font family and size is currently hard-coded)
 text :: T.Text -> Graphical
-text = textWith (TextStyle { styles = [] })
+text = textWith def
 
 -- | Text object with text style
 textWith :: TextStyleType -> T.Text -> Graphical
@@ -165,7 +168,7 @@ rectangleWith = Rectangle
 --
 -- > rectangle == rectangleWith nil
 rectangle :: SDL.Pos -> SDL.Pos -> Graphical
-rectangle = rectangleWith defShapeStyle
+rectangle = rectangleWith def
 
 -- | Coloring function
 colored :: SDL.Color -> Graphical -> Graphical

@@ -46,6 +46,7 @@ module Graphics.UI.Refluxive
 
   -- * Re-exports
   , module Graphics.UI.Refluxive.Graphical
+  , module Data.Default
   ) where
 
 import qualified SDL as SDL
@@ -59,6 +60,7 @@ import Data.Unique
 import qualified Data.Vector.Mutable as V
 import qualified Data.IntSet as S
 import qualified Data.Map as M
+import Data.Default
 import Data.Word (Word8)
 import Linear.V4
 import Unsafe.Coerce
@@ -297,7 +299,7 @@ fromModel :: Component UI a => Model a -> UI (ComponentView a)
 fromModel model = do
   uniq <- liftIO newUnique
   modelRef <- liftIO $ newIORef model
-  renderRef <- liftIO $ newIORef defRenderState
+  renderRef <- liftIO $ newIORef def
 
   return $ ComponentView
     { name = prefix model ++ show (hashUnique uniq)

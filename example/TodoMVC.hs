@@ -40,7 +40,7 @@ instance Component UI "text-form" where
 
   getGraphical (TextformModel txt placeholder) = do
     return $ clip (V2 300 50) $ graphics
-      [ colored (V4 200 200 200 255) $ rectangleWith (defShapeStyle { fill = False }) (V2 0 0) (V2 300 50)
+      [ colored (V4 200 200 200 255) $ rectangleWith (def { fill = False }) (V2 0 0) (V2 300 50)
       , translate (V2 5 13) $
         if T.null txt
         then colored (V4 100 100 100 255) $ text $ placeholder

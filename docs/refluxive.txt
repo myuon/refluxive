@@ -21,9 +21,6 @@ RenderState :: Color -> Pos -> Pos -> RenderState
 [coordinate] :: RenderState -> Pos
 [scaler] :: RenderState -> Pos
 
--- | Default rendering state
-defRenderState :: RenderState
-
 -- | A function to draw <a>Graphical</a> objects
 render :: MonadIO m => Color -> Maybe Font -> Renderer -> Graphical -> (RenderState -> String -> m ()) -> m ()
 
@@ -40,10 +37,7 @@ relLineTo :: Pos -> Pos -> Graphical
 text :: Text -> Graphical
 
 -- | Text object with text style
-textWith :: IncludeAssoc TextStyle xs => Record xs -> Text -> Graphical
-
--- | Text style for <a>text</a> object
-type TextStyle = '["styles" >: [Style]]
+textWith :: TextStyleType -> Text -> Graphical
 
 -- | Scaling function, useful to place objects in grid
 gridLayout :: Pos -> Graphical -> Graphical
@@ -56,10 +50,7 @@ gridLayout :: Pos -> Graphical -> Graphical
 rectangle :: Pos -> Pos -> Graphical
 
 -- | Rectangle object with shape style
-rectangleWith :: IncludeAssoc ShapeStyle xs => Record xs -> Pos -> Pos -> Graphical
-
--- | Shape style for <a>rectangle</a> object
-type ShapeStyle = ["fill" >: Bool, "rounded" >: Maybe Int]
+rectangleWith :: ShapeStyleType -> Pos -> Pos -> Graphical
 
 -- | Possible styles that can be applied to a <a>Font</a>.
 data Style
@@ -82,6 +73,16 @@ clip :: Pos -> Graphical -> Graphical
 
 -- | Tagging id with given graphical (like CSS id)
 viewInfo :: String -> Graphical -> Graphical
+
+-- | Text style for <a>text</a> object
+fill :: ShapeStyleType -> Bool
+rounded :: ShapeStyleType -> Maybe Int
+
+-- | Shape style for <a>rectangle</a> object
+styles :: TextStyleType -> [Style]
+instance Data.Default.Class.Default Graphics.UI.Refluxive.Graphical.RenderState
+instance Data.Default.Class.Default Graphics.UI.Refluxive.Graphical.TextStyleType
+instance Data.Default.Class.Default Graphics.UI.Refluxive.Graphical.ShapeStyleType
 
 
 -- | UI Components
@@ -233,6 +234,8 @@ data ButtonState
 None :: ButtonState
 Hover :: ButtonState
 Clicking :: ButtonState
+label_ :: ModelParam "button" -> Text
+size_ :: ModelParam "button" -> Pos
 
 -- | Click event listener for button component
 onClick :: Component UI tgt => ComponentView "button" -> ComponentView tgt -> (RenderState -> StateT (Model tgt) UI ()) -> UI ()
