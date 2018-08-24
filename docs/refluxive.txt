@@ -62,7 +62,7 @@ rectangleWith :: IncludeAssoc ShapeStyle xs => Record xs -> Pos -> Pos -> Graphi
 type ShapeStyle = ["fill" >: Bool, "rounded" >: Maybe Int]
 
 -- | Possible styles that can be applied to a <a>Font</a>.
-data Style :: *
+data Style
 Bold :: Style
 Italic :: Style
 Underline :: Style
