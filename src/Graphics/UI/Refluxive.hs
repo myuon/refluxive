@@ -20,6 +20,8 @@ module Graphics.UI.Refluxive
 
   -- ** Font
   , loadFontUI
+  , textSize
+  , textDefSize
 
   -- * Component
 
@@ -54,6 +56,8 @@ module Graphics.UI.Refluxive
 
 import qualified SDL as SDL
 import qualified SDL.Font as SDLF
+import qualified SDL.Framerate as SDLFR
+import SDL.Vect
 import Control.Concurrent.MVar
 import Control.Lens hiding (view)
 import Control.Monad.State
@@ -66,6 +70,7 @@ import qualified Data.Map as M
 import Data.Default
 import Data.Word (Word8)
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
 import Language.Haskell.TH
 import Linear.V4
 import Unsafe.Coerce
@@ -146,6 +151,7 @@ data UIState
   , _clearColor :: SDLF.Color
   , _isQuit :: Bool
   , _builtIn' :: Maybe (ComponentView "builtin")
+  , _manager :: SDLFR.Manager
   }
 
 makeLenses ''UIState
@@ -176,6 +182,7 @@ runUI m = do
     <*> pure (V4 255 255 255 255)
     <*> pure False
     <*> pure Nothing
+    <*> SDLFR.manager
 
 -- | Utility function for loading font from ByteString in UI monad
 loadFontUI :: String -> BS.ByteString -> UI ()
@@ -217,6 +224,11 @@ quit = isQuit .= True
 initialize :: UI ()
 initialize = do
   $(LoadFont.loadFont "def" "https://fonts.gstatic.com/s/notosans/v7/o-0IIpQlx3QUlC5A4PNr5TRF.ttf")
+  $(LoadFont.loadFont "noto-sans" "https://fonts.gstatic.com/s/notosans/v7/o-0IIpQlx3QUlC5A4PNr5TRF.ttf")
+  $(LoadFont.loadFont "roboto" "https://fonts.gstatic.com/s/roboto/v18/KFOmCnqEu92Fr1Mu4mxP.ttf")
+
+  m <- use manager
+  SDLFR.set m 30
 
   use clearColor >>= setClearColor
 
@@ -235,6 +247,8 @@ _builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
 -- | Start a mainloop, render given components as root
 mainloop :: [SomeComponent] -> UI ()
 mainloop root = do
+  SDLFR.delay_ =<< use manager
+
   -- poll sdl events
   SDL.pollEvents >>= \evs -> forM_ evs $ \ev -> do
     es <- use eventStream
@@ -276,9 +290,6 @@ mainloop root = do
 
   -- commit view changes
   use renderer >>= SDL.present
-
-  -- wait
-  SDL.delay 33
 
   q <- use isQuit
   unless q $ mainloop root
@@ -349,4 +360,16 @@ new p = do
   cp <- fromModel =<< newModel p
   initComponent cp
   return cp
+
+-- | Get the size of text surface
+textSize :: String -> Int -> T.Text -> UI (V2 Int)
+textSize name i text = do
+  fs <- use fonts
+  fmap (\(x,y) -> V2 x y) $ SDLF.size (fs M.! (name,i)) text
+
+-- | Get the size of text surface with default font
+textDefSize :: T.Text -> UI (V2 Int)
+textDefSize text = do
+  fs <- use fonts
+  fmap (\(x,y) -> V2 x y) $ SDLF.size (fs M.! ("def",12)) text
 

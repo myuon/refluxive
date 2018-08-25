@@ -178,6 +178,12 @@ quit :: UI ()
 -- | Utility function for loading font from ByteString in UI monad
 loadFontUI :: String -> ByteString -> UI ()
 
+-- | Get the size of text surface
+textSize :: String -> Int -> Text -> UI (V2 Int)
+
+-- | Get the size of text surface with default font
+textDefSize :: Text -> UI (V2 Int)
+
 -- | Register a graphical object to raw component | This will override the
 --   previous graphical
 rawGraphical :: ComponentView "raw" -> Graphical -> UI ()
