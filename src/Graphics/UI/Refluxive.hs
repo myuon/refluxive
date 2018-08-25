@@ -18,6 +18,10 @@ module Graphics.UI.Refluxive
   , addWatchSignal
   , quit
 
+  -- ** Font
+  , loadFont
+  , loadFontUI
+
   -- * Component
 
   -- ** Raw Component
@@ -62,8 +66,11 @@ import qualified Data.IntSet as S
 import qualified Data.Map as M
 import Data.Default
 import Data.Word (Word8)
+import qualified Data.ByteString as BS
+import Language.Haskell.TH
 import Linear.V4
 import Unsafe.Coerce
+import qualified Graphics.Font.FontLoader as FontLoader
 import Graphics.UI.Refluxive.Graphical
 import Graphics.UI.Refluxive.Component
 
@@ -136,7 +143,7 @@ data UIState
   , _registry :: Registry SomeComponent
   , _eventStream :: EventStream
   , _distributer :: M.Map String [SomeCallback]
-  , _font :: Maybe SDLF.Font
+  , _fonts :: M.Map (String, Int) SDLF.Font
   , _clearColor :: SDLF.Color
   , _isQuit :: Bool
   , _builtIn' :: Maybe (ComponentView "builtin")
@@ -166,10 +173,25 @@ runUI m = do
     <*> newRegistry
     <*> newEventStream
     <*> pure M.empty
-    <*> fmap Just (SDLF.load "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc" 20)
+    <*> pure M.empty
     <*> pure (V4 255 255 255 255)
     <*> pure False
     <*> pure Nothing
+
+-- | Utility function for loading font from ByteString in UI monad
+loadFontUI :: String -> BS.ByteString -> UI ()
+loadFontUI name font = do
+  let sizes = [8,9,10,11,12,14,18,24,30,36,48,60,72,96]
+  forM_ sizes $ \size -> do
+    fonts . ixAt (name, size) <~ SDLF.decode font size
+
+-- | Load font with name & web font url. This ExpQ will generate UI action
+loadFont
+  :: String  -- ^ font name (on your choice)
+  -> String  -- ^ font URL
+  -> Q Exp
+loadFont name url = do
+  [| loadFontUI name $(FontLoader.loadFont url) |]
 
 -- | Set background color
 setClearColor :: SDLF.Color -> UI ()
@@ -202,7 +224,10 @@ quit = isQuit .= True
 
 initialize :: UI ()
 initialize = do
+--  $(loadFont "def" "https://fonts.gstatic.com/s/notosans/v7/o-0IIpQlx3QUlC5A4PNr5TRF.ttf")
+
   use clearColor >>= setClearColor
+
   b <- new @"builtin" ()
   builtIn' .= Just b
   register b
@@ -249,7 +274,7 @@ mainloop root = do
     SomeComponent cp <- liftIO $ V.read (reg ^. content) i
 
     r <- use renderer
-    f <- use font
+    f <- use fonts
     c <- use clearColor
     g <- view cp
     render c f r g $ \st name -> do

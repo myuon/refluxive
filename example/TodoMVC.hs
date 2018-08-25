@@ -43,8 +43,8 @@ instance Component UI "text-form" where
       [ colored (V4 200 200 200 255) $ rectangleWith (def { fill = False }) (V2 0 0) (V2 300 50)
       , translate (V2 5 13) $
         if T.null txt
-        then colored (V4 100 100 100 255) $ text $ placeholder
-        else colored (V4 0 0 0 255) $ text $ txt `T.append` "■"
+        then colored (V4 100 100 100 255) $ textDef placeholder
+        else colored (V4 0 0 0 255) $ textDef $ txt `T.append` "■"
       ]
 
 instance Component UI "item-checklist" where
@@ -71,8 +71,8 @@ instance Component UI "item-checklist" where
         [ translate (V2 0 0) $ checkboxView
         , translate (V2 30 0) $
           if checkState
-          then colored (V4 100 100 100 255) $ textWith (TextStyle { styles = [Strikethrough] }) content
-          else colored (V4 0 0 0 255) $ text content
+          then colored (V4 100 100 100 255) $ textDefWith (TextStyle { styles = [Strikethrough] }) content
+          else colored (V4 0 0 0 255) $ textDef content
         ]
 
 getItemCount :: MonadIO m => ComponentView "item-checklist" -> m Int
@@ -133,7 +133,7 @@ instance Component UI "app" where
       [ textformView
       , translate (V2 5 60) itemlistView
       , if doneItemCount > 0
-        then translate (V2 0 (60 + toEnum itemCount * 30)) $ text $ T.pack (show doneItemCount) `T.append` " items left"
+        then translate (V2 0 (60 + toEnum itemCount * 30)) $ textDef $ T.pack (show doneItemCount) `T.append` " items left"
         else empty
       ]
 

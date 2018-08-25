@@ -51,6 +51,6 @@ instance Component UI "checkbox" where
   getGraphical (CheckBoxModel b) = do
     return $ graphics
       [ if b
-        then colored (V4 50 150 50 255) $ text "✓"
-        else colored (V4 200 200 200 255) $ text "□"
+        then colored (V4 50 150 50 255) $ textDef "✓"
+        else colored (V4 200 200 200 255) $ textDef "□"
       ]

@@ -92,7 +92,7 @@ instance Component UI "button" where
     return $ graphics $
       [ colored (if model^.buttonState == Hover then V4 220 220 220 255 else V4 200 200 200 255) $ rectangle (V2 0 0) (model^.size)
       , colored (V4 0 0 0 255) $ rectangleWith (ShapeStyle { fill = False, rounded = Nothing }) (V2 0 0) (model^.size)
-      , translate (V2 10 5) $ text $ model^.label
+      , translate (V2 10 5) $ textDef $ model^.label
       ]
 
 

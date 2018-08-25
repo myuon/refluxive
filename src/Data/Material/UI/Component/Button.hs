@@ -18,6 +18,6 @@ instance Component UI "button" where
   getGraphical model = do
     return $ graphics $
       [ colored (V4 0x62 0x00 0xee 0xff) $ rectangleWith (def { rounded = Just 2 }) (V2 0 0) (V2 64 36)
-      , colored (V4 0xff 0xff 0xff 0xff) $ translate (V2 16 0) $ text "BUTTON"
+      , colored (V4 0xff 0xff 0xff 0xff) $ translate (V2 16 0) $ textDef "BUTTON"
       ]
 

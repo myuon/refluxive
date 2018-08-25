@@ -56,9 +56,9 @@ main = runUI $ do
         ]
       , colored (V4 200 100 100 255) $ rectangleWith (def { fill = False }) (V2 4 4) (V2 1 1)
       , colored (V4 200 100 100 255) $ rectangleWith (def { rounded = Just 10 }) (V2 5 5) (V2 1 1)
-      , colored (V4 255 0 0 255) $ text "Hello, World!"
+      , colored (V4 255 0 0 255) $ textDef "Hello, World!"
       ]
-    , clip (V2 200 40) $ colored (V4 0 0 0 255) $ text "hey youyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+    , clip (V2 200 40) $ colored (V4 0 0 0 255) $ textDef "hey youyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
     ]
 
   mainloop [asRoot raw, asRoot counter]

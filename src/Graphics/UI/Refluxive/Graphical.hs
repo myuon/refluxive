@@ -15,6 +15,8 @@ module Graphics.UI.Refluxive.Graphical
   , relLineTo
   , text
   , textWith
+  , textDef
+  , textDefWith
   , gridLayout
   , rectangle
   , rectangleWith
@@ -36,6 +38,7 @@ import qualified SDL.Font as SDLF
 import Linear.V2
 import Control.Monad.Trans
 import qualified Data.Text as T
+import qualified Data.Map as M
 import Data.Maybe
 import Data.Default
 import Foreign.C.Types
@@ -67,7 +70,7 @@ data Graphical
   | Colored SDL.Color Graphical
   | Translate SDL.Pos Graphical
   | Graphics [Graphical]
-  | Text TextStyleType T.Text
+  | Text TextStyleType String Int T.Text
   | Clip SDL.Pos Graphical
   | ViewInfo String Graphical
   | LineTo SDL.Pos SDL.Pos
@@ -92,12 +95,12 @@ instance Default RenderState where
 -- | A function to draw 'Graphical' objects
 render :: MonadIO m
        => SDLF.Color -- ^ clearColor (__not a rendering color__)
-       -> Maybe SDLF.Font -- ^ font data
+       -> M.Map (String,Int) SDLF.Font -- ^ font registry
        -> SDL.Renderer -- ^ current renderer
        -> Graphical -- ^ object to render
        -> (RenderState -> String -> m ()) -- ^ tagging function which is used in Components
        -> m ()
-render clearColor mfont renderer g cont = go def g >> liftIO performGC where
+render clearColor fonts renderer g cont = go def g >> liftIO performGC where
   go st Empty = return ()
   go st (GridLayout s g) = go (st { scaler = s }) g
   go st (Rectangle style pos size) = do
@@ -111,10 +114,10 @@ render clearColor mfont renderer g cont = go def g >> liftIO performGC where
   go st (Colored color g) = go (st { color = color }) g
   go st (Translate p g) = go (st { coordinate = coordinate st + p * scaler st }) g
   go st (Graphics gs) = mapM_ (go st) gs
-  go st (Text styles txt) | T.null txt = return ()
-  go st (Text ts txt) = do
-    SDLF.setStyle (fromJust mfont) (styles ts)
-    surface <- SDLF.blended (fromJust mfont) (color st) txt
+  go st (Text ts name size txt) | T.null txt = return ()
+  go st (Text ts name size txt) = do
+    SDLF.setStyle (fonts M.! (name,size)) (styles ts)
+    surface <- SDLF.blended (fonts M.! (name,size)) (color st) txt
     texture <- SDL.createTextureFromSurface renderer surface
     SDL.textureBlendMode texture SDL.$= SDL.BlendAlphaBlend
     tinfo <- SDL.queryTexture texture
@@ -138,12 +141,20 @@ empty :: Graphical
 empty = Empty
 
 -- | Text object (font family and size is currently hard-coded)
-text :: T.Text -> Graphical
+text :: String -> Int -> T.Text -> Graphical
 text = textWith def
 
 -- | Text object with text style
-textWith :: TextStyleType -> T.Text -> Graphical
+textWith :: TextStyleType -> String -> Int -> T.Text -> Graphical
 textWith = Text
+
+-- | Text object with default Font
+textDef :: T.Text -> Graphical
+textDef = text "def" 12
+
+-- | Text object with default Font, text style
+textDefWith :: TextStyleType -> T.Text -> Graphical
+textDefWith s = textWith s "def" 12
 
 -- | Scaling function, useful to place objects in grid
 gridLayout :: SDL.Pos -> Graphical -> Graphical

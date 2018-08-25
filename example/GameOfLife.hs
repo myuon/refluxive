@@ -162,7 +162,7 @@ instance Component UI "app" where
     clearButtonView <- view $ clearButton model
 
     return $ graphics $
-      [ translate (V2 20 20) $ text "Game of Life"
+      [ translate (V2 20 20) $ textDef "Game of Life"
       , translate (fmap toEnum $ margin model) $ gridLayout (fmap toEnum $ cellSize model) $ graphics cellGraphicals
       , translate (V2 20 400) $ stepButtonView
       , translate (V2 110 400) $ runButtonView
