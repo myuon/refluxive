@@ -6,6 +6,7 @@ import Control.Monad.IO.Class
 import qualified Data.ByteString as BS
 import Data.FileEmbed
 import Network.Download
+import Network.HTTP.Simple
 import Language.Haskell.TH
 import System.Directory
 
@@ -14,13 +15,15 @@ loadFont
   :: String -- ^ font URL
   -> Q Exp
 loadFont url = do
-  let path = ".stack-work/refluxive/" ++ fmap (\c -> if c == '/' then '_' else c) url
+  let path = ".stack-work/refluxive/" ++ fmap (\c -> if c `elem` ("/:" :: String) then '_' else c) url
 
   liftIO $ do
+    createDirectoryIfMissing True ".stack-work/refluxive"
+
     b <- doesFileExist path
     when (not b) $ do
-      Right content <- openURI url
-      BS.writeFile path content
+      res <- httpBS $ parseRequest_ url
+      BS.writeFile path $ getResponseBody res
 
   embedFile path
 

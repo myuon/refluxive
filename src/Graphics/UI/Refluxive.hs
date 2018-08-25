@@ -19,7 +19,6 @@ module Graphics.UI.Refluxive
   , quit
 
   -- ** Font
-  , loadFont
   , loadFontUI
 
   -- * Component
@@ -70,7 +69,7 @@ import qualified Data.ByteString as BS
 import Language.Haskell.TH
 import Linear.V4
 import Unsafe.Coerce
-import qualified Graphics.Font.FontLoader as FontLoader
+import qualified Graphics.UI.LoadFontHack as LoadFont
 import Graphics.UI.Refluxive.Graphical
 import Graphics.UI.Refluxive.Component
 
@@ -183,15 +182,8 @@ loadFontUI :: String -> BS.ByteString -> UI ()
 loadFontUI name font = do
   let sizes = [8,9,10,11,12,14,18,24,30,36,48,60,72,96]
   forM_ sizes $ \size -> do
-    fonts . ixAt (name, size) <~ SDLF.decode font size
-
--- | Load font with name & web font url. This ExpQ will generate UI action
-loadFont
-  :: String  -- ^ font name (on your choice)
-  -> String  -- ^ font URL
-  -> Q Exp
-loadFont name url = do
-  [| loadFontUI name $(FontLoader.loadFont url) |]
+    ttf <- SDLF.decode font size
+    fonts %= M.insert (name, size) ttf
 
 -- | Set background color
 setClearColor :: SDLF.Color -> UI ()
@@ -224,7 +216,7 @@ quit = isQuit .= True
 
 initialize :: UI ()
 initialize = do
---  $(loadFont "def" "https://fonts.gstatic.com/s/notosans/v7/o-0IIpQlx3QUlC5A4PNr5TRF.ttf")
+  $(LoadFont.loadFont "def" "https://fonts.gstatic.com/s/notosans/v7/o-0IIpQlx3QUlC5A4PNr5TRF.ttf")
 
   use clearColor >>= setClearColor
 

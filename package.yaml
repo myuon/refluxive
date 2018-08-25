@@ -54,6 +54,7 @@ dependencies:
 - bytestring
 - directory
 - file-embed
+- http-conduit
 
 library:
   source-dirs: src
