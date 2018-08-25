@@ -49,7 +49,6 @@ dependencies:
 - mwc-random
 - lens
 - data-default
-- download
 - template-haskell
 - bytestring
 - directory

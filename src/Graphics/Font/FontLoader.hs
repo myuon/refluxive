@@ -5,7 +5,6 @@ import Control.Monad
 import Control.Monad.IO.Class
 import qualified Data.ByteString as BS
 import Data.FileEmbed
-import Network.Download
 import Network.HTTP.Simple
 import Language.Haskell.TH
 import System.Directory

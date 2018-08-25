@@ -11,6 +11,17 @@ module Data.Material.UI.Foundation.Color
 
 module Data.Material.UI.Foundation.Grid
 
+module Graphics.Font.FontLoader
+
+-- | Load webfont and embed the ttf content as ByteString at compile-time
+loadFont :: String -> Q Exp
+
+module Graphics.UI.LoadFontHack
+
+-- | Load font with name &amp; web font url. This ExpQ will generate UI
+--   action
+loadFont :: String -> String -> Q Exp
+
 
 -- | Provides graphical functions
 module Graphics.UI.Refluxive.Graphical
@@ -26,7 +37,7 @@ RenderState :: Color -> Pos -> Pos -> RenderState
 [scaler] :: RenderState -> Pos
 
 -- | A function to draw <a>Graphical</a> objects
-render :: MonadIO m => Color -> Maybe Font -> Renderer -> Graphical -> (RenderState -> String -> m ()) -> m ()
+render :: MonadIO m => Color -> Map (String, Int) Font -> Renderer -> Graphical -> (RenderState -> String -> m ()) -> m ()
 
 -- | Empty object
 empty :: Graphical
@@ -38,10 +49,16 @@ lineTo :: Pos -> Pos -> Graphical
 relLineTo :: Pos -> Pos -> Graphical
 
 -- | Text object (font family and size is currently hard-coded)
-text :: Text -> Graphical
+text :: String -> Int -> Text -> Graphical
 
 -- | Text object with text style
-textWith :: TextStyleType -> Text -> Graphical
+textWith :: TextStyleType -> String -> Int -> Text -> Graphical
+
+-- | Text object with default Font
+textDef :: Text -> Graphical
+
+-- | Text object with default Font, text style
+textDefWith :: TextStyleType -> Text -> Graphical
 
 -- | Scaling function, useful to place objects in grid
 gridLayout :: Pos -> Graphical -> Graphical
@@ -157,6 +174,9 @@ addWatchSignal :: Component UI tgt => ComponentView tgt -> Watcher UI tgt -> UI 
 
 -- | Quit the mainloop
 quit :: UI ()
+
+-- | Utility function for loading font from ByteString in UI monad
+loadFontUI :: String -> ByteString -> UI ()
 
 -- | Register a graphical object to raw component | This will override the
 --   previous graphical
