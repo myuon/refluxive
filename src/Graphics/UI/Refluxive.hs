@@ -9,6 +9,7 @@ module Graphics.UI.Refluxive
   UI
   , runUI
   , mainloop
+  , mainloopDev
 
   , register
   , emit
@@ -18,12 +19,15 @@ module Graphics.UI.Refluxive
   , addWatchSignal
   , quit
 
+  , replace
+
   -- ** Font
   , loadFontUI
   , textSize
   , textDefSize
 
   -- * Component
+  , SomeComponent(..)
 
   -- ** Raw Component
   --
@@ -246,7 +250,10 @@ _builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
 
 -- | Start a mainloop, render given components as root
 mainloop :: [SomeComponent] -> UI ()
-mainloop root = do
+mainloop = mainloopDev Nothing
+
+mainloopDev :: Maybe (MVar (Maybe a), a -> UI ()) -> [SomeComponent] -> UI ()
+mainloopDev dev root = do
   SDLFR.delay_ =<< use manager
 
   -- poll sdl events
@@ -291,8 +298,15 @@ mainloop root = do
   -- commit view changes
   use renderer >>= SDL.present
 
+  -- dev hook
+  case dev of
+    Just (chan, cb) -> do
+      r <- liftIO $ readMVar chan
+      maybe (return ()) cb r
+    Nothing -> return ()
+
   q <- use isQuit
-  unless q $ mainloop root
+  unless q $ mainloopDev dev root
 
   SDLF.quit
   SDL.quit
@@ -372,4 +386,10 @@ textDefSize :: T.Text -> UI (V2 Int)
 textDefSize text = do
   fs <- use fonts
   fmap (\(x,y) -> V2 x y) $ SDLF.size (fs M.! ("def",12)) text
+
+replace :: (String -> SomeComponent -> UI SomeComponent) -> UI ()
+replace newcomp = do
+  reg <- use registry
+  forM_ (M.keys $ reg^.uids) $ \uid -> do
+    modifyMRegistryByUID uid reg (newcomp uid)
 
