@@ -60,8 +60,7 @@ library:
 
 executables:
   example-helloworld:
-    main:                HelloWorld.hs
-    source-dirs:         example
+    main:                example/HelloWorld.hs
     ghc-options:
     - -threaded
     - -rtsopts
@@ -70,8 +69,7 @@ executables:
     dependencies:
     - refluxive
   example-todomvc:
-    main:                TodoMVC.hs
-    source-dirs:         example
+    main:                example/TodoMVC.hs
     ghc-options:
     - -threaded
     - -rtsopts
@@ -80,8 +78,7 @@ executables:
     dependencies:
     - refluxive
   example-clickcounter:
-    main:                ClickCounterButton.hs
-    source-dirs:         example
+    main:                example/ClickCounterButton.hs
     ghc-options:
     - -threaded
     - -rtsopts
@@ -90,8 +87,7 @@ executables:
     dependencies:
     - refluxive
   example-game-of-life:
-    main:                GameOfLife.hs
-    source-dirs:         example
+    main:                example/GameOfLife.hs
     ghc-options:
     - -threaded
     - -rtsopts
@@ -100,8 +96,7 @@ executables:
     dependencies:
     - refluxive
   example-material-design:
-    main:                MaterialUI.hs
-    source-dirs:         example
+    main:                example/MaterialUI.hs
     ghc-options:
     - -threaded
     - -rtsopts
@@ -109,5 +104,15 @@ executables:
     - -main-is MaterialUI
     dependencies:
     - refluxive
-
+  dev-server:
+    main:                example/DevServer.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -main-is DevServer
+    dependencies:
+    - refluxive
+    - hint
+    - fsnotify
 
