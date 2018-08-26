@@ -4,6 +4,7 @@ import SDL.Vect
 import Control.Concurrent
 import Control.Concurrent.MVar
 import Control.Monad (forever)
+import Control.Monad.IO.Class
 import Data.List
 import qualified Language.Haskell.Interpreter as Hint
 import System.FSNotify
@@ -11,10 +12,17 @@ import Graphics.UI.Refluxive
 import qualified Data.Material.UI.Component.Button as Button
 
 hotreload :: String -> UI ()
-hotreload _ = replace $ \name comp ->
-  if "button" `isPrefixOf` name
-  then fmap SomeComponent $ Hint.interpret "new @\"button\" ()" (Hint.as :: ComponentView "button")
-  else return comp
+hotreload _ = do
+  liftIO $ putStrLn "reloading..."
+
+  result <- liftIO $ Hint.runInterpreter $ do
+    Hint.setImports ["Graphics.UI.Refluxive"]
+    Hint.set [Hint.languageExtensions Hint.:= [Hint.TypeApplications, Hint.DataKinds, Hint.PolyKinds, Hint.TypeFamilies]]
+    Hint.reset
+    Hint.interpret "getGraphical @\"button\"" (Hint.as :: Model "button" -> UI Graphical)
+  case result of
+    Right r -> replace "button" r
+    Left err -> liftIO $ print err
 
 runner :: MVar (Maybe String) -> IO ()
 runner ref = runUI $ do
@@ -25,24 +33,11 @@ runner ref = runUI $ do
   mainloopDev (Just (ref, hotreload)) [asRoot btn]
 
 main = withManager $ \mgr -> do
-  let entry = "example/MaterialUI.hs"
   putStrLn "start watching..."
 
   ref <- newMVar Nothing
   forkIO $ runner ref
-  watchTree mgr "example/" (const True) (\_ -> putMVar ref (Just "button"))
+  watchTree mgr "." (const True) (\_ -> putMVar ref (Just "button"))
 
   forever $ threadDelay 1000000
-
-{-
-runUI $ do
-  setClearColor (V4 240 240 240 255)
-
-  btn <- new @"button" ()
-  register btn
-
-  mainloop [asRoot btn]
--}
-
-
 

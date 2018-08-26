@@ -28,7 +28,7 @@ data Watcher m tgt = forall src. (Component m src, Component m tgt) =>
 data ComponentView a
   = ComponentView
   { modelRef :: IORef (Model a)
-  , name :: String
+  , name :: Name
   , renderStateRef :: IORef RenderState
   }
 

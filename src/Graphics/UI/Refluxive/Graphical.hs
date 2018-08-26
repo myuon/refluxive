@@ -30,6 +30,7 @@ module Graphics.UI.Refluxive.Graphical
   -- * Constructors
   , pattern TextStyle, fill, rounded
   , pattern ShapeStyle, styles
+  , Name(..)
   ) where
 
 import qualified SDL as SDL
@@ -43,6 +44,9 @@ import Data.Maybe
 import Data.Default
 import Foreign.C.Types
 import System.Mem
+
+data Name = Name String String
+  deriving (Show, Eq, Ord)
 
 newtype ShapeStyleType = ShapeStyleType (Bool, Maybe Int)
 
@@ -72,7 +76,7 @@ data Graphical
   | Graphics [Graphical]
   | Text TextStyleType String Int T.Text
   | Clip SDL.Pos Graphical
-  | ViewInfo String Graphical
+  | ViewInfo Name Graphical
   | LineTo SDL.Pos SDL.Pos
   | RelLineTo SDL.Pos SDL.Pos
 
@@ -98,7 +102,7 @@ render :: MonadIO m
        -> M.Map (String,Int) SDLF.Font -- ^ font registry
        -> SDL.Renderer -- ^ current renderer
        -> Graphical -- ^ object to render
-       -> (RenderState -> String -> m ()) -- ^ tagging function which is used in Components
+       -> (RenderState -> Name -> m ()) -- ^ tagging function which is used in Components
        -> m ()
 render clearColor fonts renderer g cont = go def g >> liftIO performGC where
   go st Empty = return ()
@@ -198,6 +202,6 @@ clip :: SDL.Pos -> Graphical -> Graphical
 clip = Clip
 
 -- | Tagging id with given graphical (like CSS id)
-viewInfo :: String -> Graphical -> Graphical
+viewInfo :: Name -> Graphical -> Graphical
 viewInfo = ViewInfo
 

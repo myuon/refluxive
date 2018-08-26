@@ -75,23 +75,23 @@ import Data.Default
 import Data.Word (Word8)
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import Language.Haskell.TH
+import Data.Coerce
 import Linear.V4
 import Unsafe.Coerce
 import qualified Graphics.UI.LoadFontHack as LoadFont
 import Graphics.UI.Refluxive.Graphical
 import Graphics.UI.Refluxive.Component
 
-data Registry a
+data Registry k a
   = Registry
   { _content :: V.IOVector a
   , _keys :: S.IntSet
-  , _uids :: M.Map String Int
+  , _uids :: M.Map k Int
   }
 
 makeLenses ''Registry
 
-newRegistry :: IO (Registry a)
+newRegistry :: IO (Registry k a)
 newRegistry = do
   v <- V.new 20
 
@@ -101,7 +101,7 @@ newRegistry = do
     , _uids = M.empty
     }
 
-pushRegistry :: String -> a -> Registry a -> IO (Int, Registry a)
+pushRegistry :: Ord k => k -> a -> Registry k a -> IO (Int, Registry k a)
 pushRegistry name a reg = (`runContT` return) $ callCC $ \return_ -> do
   forM_ [0..V.length (reg ^. content)] $ \i -> do
     when (i `S.notMember` (reg ^. keys)) $ do
@@ -113,19 +113,19 @@ pushRegistry name a reg = (`runContT` return) $ callCC $ \return_ -> do
   liftIO $ V.write content' length a
   return $ (length, reg & content .~ content' & keys %~ S.insert length & uids %~ M.insert name length)
 
-getRegistryByUID :: MonadIO m => String -> Registry a -> m a
+getRegistryByUID :: (Ord k, Show k, MonadIO m) => k -> Registry k a -> m a
 getRegistryByUID uid reg = do
-  when (uid `M.notMember` (reg ^. uids)) $ error $ "Unexpected name: " ++ uid ++ ", you might forget registering the ComponentView?"
+  when (uid `M.notMember` (reg ^. uids)) $ error $ "Unexpected name: " ++ show uid ++ ", you might forget registering the ComponentView?"
   liftIO $ V.read (reg ^. content) (reg ^. uids ^?! ix uid)
 
-modifyMRegistryByUID :: MonadIO m => String -> Registry a -> (a -> m a) -> m ()
+modifyMRegistryByUID :: (Ord k, Show k, MonadIO m) => k -> Registry k a -> (a -> m a) -> m ()
 modifyMRegistryByUID uid reg updater = do
   current <- getRegistryByUID uid reg
   next <- updater current
   liftIO $ V.write (reg ^. content) (reg ^. uids ^?! ix uid) next
 
 data SomeSignal = forall a. Component UI a => SomeSignal (Signal a)
-newtype EventStream = EventStream { getEventStream :: MVar [(String, SomeSignal)] }
+newtype EventStream = EventStream { getEventStream :: MVar [(Name, SomeSignal)] }
 
 newEventStream :: MonadIO m => m EventStream
 newEventStream = fmap EventStream $ liftIO $ newMVar []
@@ -133,24 +133,26 @@ newEventStream = fmap EventStream $ liftIO $ newMVar []
 pushEvent :: (Component UI a, MonadIO m) => EventStream -> ComponentView a -> Signal a -> m ()
 pushEvent stream cp s = liftIO $ modifyMVar_ (getEventStream stream) $ return . (makeEvent cp s :)
 
-makeEvent :: Component UI a => ComponentView a -> Signal a -> (String, SomeSignal)
+makeEvent :: Component UI a => ComponentView a -> Signal a -> (Name, SomeSignal)
 makeEvent cp s = (name cp, SomeSignal s)
 
-pullEvents :: MonadIO m => EventStream -> m [(String, SomeSignal)]
+pullEvents :: MonadIO m => EventStream -> m [(Name, SomeSignal)]
 pullEvents stream = liftIO $ fmap reverse $ swapMVar (getEventStream stream) []
 
 -- | UI monad
 newtype UI a = UI { unpackUI :: StateT UIState IO a } deriving (Functor, Applicative, Monad, MonadIO)
 
 data SomeComponent = forall a. Component UI a => SomeComponent (ComponentView a)
-data SomeCallback = forall a b. (Component UI a, Component UI b) => SomeCallback String (RenderState -> Signal a -> StateT (Model b) UI ())
+data SomeCallback = forall a b. (Component UI a, Component UI b) => SomeCallback Name (RenderState -> Signal a -> StateT (Model b) UI ())
+data SomeModel = forall a. Component UI a => SomeModel (Model a)
 
 data UIState
   = UIState
   { _renderer :: SDL.Renderer
-  , _registry :: Registry SomeComponent
+  , _registry :: Registry Name SomeComponent
   , _eventStream :: EventStream
-  , _distributer :: M.Map String [SomeCallback]
+  , _distributer :: M.Map Name [SomeCallback]
+  , _graphicals :: M.Map String (SomeModel -> UI Graphical)
   , _fonts :: M.Map (String, Int) SDLF.Font
   , _clearColor :: SDLF.Color
   , _isQuit :: Bool
@@ -183,6 +185,7 @@ runUI m = do
     <*> newEventStream
     <*> pure M.empty
     <*> pure M.empty
+    <*> pure M.empty
     <*> pure (V4 255 255 255 255)
     <*> pure False
     <*> pure Nothing
@@ -203,9 +206,14 @@ setClearColor c = do
   clearColor .= c
   SDL.rendererDrawColor r SDL.$= c
 
+asModelOf :: proxy a -> SomeModel -> Model a
+asModelOf _ = unsafeCoerce
+
 -- | Register a ComponentView to refluxive framework
 register :: Component UI a => ComponentView a -> UI ()
 register cp = do
+  graphicals %= M.insert (prefix cp) (getGraphical . asModelOf cp)
+
   reg <- use registry
   (_, reg') <- liftIO $ pushRegistry (name cp) (SomeComponent cp) reg
   registry .= reg'
@@ -250,9 +258,9 @@ _builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
 
 -- | Start a mainloop, render given components as root
 mainloop :: [SomeComponent] -> UI ()
-mainloop = mainloopDev Nothing
+mainloop = mainloopDev (Nothing :: Maybe (MVar (Maybe ()), () -> UI ()))
 
-mainloopDev :: Maybe (MVar (Maybe a), a -> UI ()) -> [SomeComponent] -> UI ()
+mainloopDev :: Show a => Maybe (MVar (Maybe a), a -> UI ()) -> [SomeComponent] -> UI ()
 mainloopDev dev root = do
   SDLFR.delay_ =<< use manager
 
@@ -301,8 +309,8 @@ mainloopDev dev root = do
   -- dev hook
   case dev of
     Just (chan, cb) -> do
-      r <- liftIO $ readMVar chan
-      maybe (return ()) cb r
+      r <- liftIO $ takeMVar chan
+      maybe (return ()) (\a -> cb a >> liftIO (putMVar chan Nothing)) r
     Nothing -> return ()
 
   q <- use isQuit
@@ -344,7 +352,7 @@ fromModel model = do
   renderRef <- liftIO $ newIORef def
 
   return $ ComponentView
-    { name = prefix model ++ show (hashUnique uniq)
+    { name = Name (prefix model) (show (hashUnique uniq))
     , renderStateRef = renderRef
     , modelRef = modelRef
     }
@@ -355,7 +363,8 @@ view cp = do
   r <- use registry
   SomeComponent cp <- getRegistryByUID (name cp) r
   model <- getModel cp
-  viewInfo (name cp) <$> getGraphical model
+  gs <- use graphicals
+  viewInfo (name cp) <$> ((\(Just x) -> x) $ gs M.!? prefix cp) (SomeModel model)
 
 -- | Modify internal model of a component
 operateModel :: Component UI a => ComponentView a -> StateT (Model a) UI r -> UI r
@@ -387,9 +396,7 @@ textDefSize text = do
   fs <- use fonts
   fmap (\(x,y) -> V2 x y) $ SDLF.size (fs M.! ("def",12)) text
 
-replace :: (String -> SomeComponent -> UI SomeComponent) -> UI ()
-replace newcomp = do
-  reg <- use registry
-  forM_ (M.keys $ reg^.uids) $ \uid -> do
-    modifyMRegistryByUID uid reg (newcomp uid)
+-- | Replace component's view
+replace :: (Component UI a) => String -> (Model a -> UI Graphical) -> UI ()
+replace prefix g = graphicals . ix prefix .= g . unsafeCoerce
 
