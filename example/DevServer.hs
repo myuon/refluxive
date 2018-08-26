@@ -17,13 +17,14 @@ hotreload _ = do
 
   result <- liftIO $ Hint.runInterpreter $ do
     Hint.set [Hint.languageExtensions Hint.:= [Hint.TypeApplications, Hint.DataKinds, Hint.PolyKinds, Hint.TypeFamilies]]
+    Hint.reset
     Hint.setImports ["Graphics.UI.Refluxive", "Data.Material.UI.Component.Button"]
     Hint.interpret "getGraphical @_ @\"button\"" (Hint.as :: Model "button" -> UI Graphical)
   case result of
     Right r -> replace "button" r
     Left err -> liftIO $ print err
 
-runner :: MVar (Maybe String) -> IO ()
+runner :: MVar String -> IO ()
 runner ref = runUI $ do
   setClearColor (V4 240 240 240 255)
   btn <- new @"button" ()
@@ -34,9 +35,10 @@ runner ref = runUI $ do
 main = withManager $ \mgr -> do
   putStrLn "start watching..."
 
-  ref <- newMVar Nothing
+  ref <- newEmptyMVar
   forkIO $ runner ref
-  watchTree mgr "." (const True) (\_ -> putMVar ref (Just "button"))
+  watchTree mgr "example" (const True) (\e -> print e >> putMVar ref "button")
+  watchTree mgr "src" (const True) (\e -> print e >> putMVar ref "button")
 
   forever $ threadDelay 1000000
 

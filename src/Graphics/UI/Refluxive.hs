@@ -258,9 +258,9 @@ _builtIn = builtIn' . lens (\(Just a) -> a) (\_ a -> Just a)
 
 -- | Start a mainloop, render given components as root
 mainloop :: [SomeComponent] -> UI ()
-mainloop = mainloopDev (Nothing :: Maybe (MVar (Maybe ()), () -> UI ()))
+mainloop = mainloopDev (Nothing :: Maybe (MVar (), () -> UI ()))
 
-mainloopDev :: Show a => Maybe (MVar (Maybe a), a -> UI ()) -> [SomeComponent] -> UI ()
+mainloopDev :: Show a => Maybe (MVar a, a -> UI ()) -> [SomeComponent] -> UI ()
 mainloopDev dev root = do
   SDLFR.delay_ =<< use manager
 
@@ -309,7 +309,7 @@ mainloopDev dev root = do
   -- dev hook
   case dev of
     Just (chan, cb) -> do
-      r <- liftIO $ swapMVar chan Nothing
+      r <- liftIO $ tryTakeMVar chan
       maybe (return ()) cb r
     Nothing -> return ()
 
