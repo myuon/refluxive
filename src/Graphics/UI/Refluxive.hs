@@ -309,8 +309,8 @@ mainloopDev dev root = do
   -- dev hook
   case dev of
     Just (chan, cb) -> do
-      r <- liftIO $ takeMVar chan
-      maybe (return ()) (\a -> cb a >> liftIO (putMVar chan Nothing)) r
+      r <- liftIO $ swapMVar chan Nothing
+      maybe (return ()) cb r
     Nothing -> return ()
 
   q <- use isQuit

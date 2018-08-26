@@ -16,10 +16,9 @@ hotreload _ = do
   liftIO $ putStrLn "reloading..."
 
   result <- liftIO $ Hint.runInterpreter $ do
-    Hint.setImports ["Graphics.UI.Refluxive"]
     Hint.set [Hint.languageExtensions Hint.:= [Hint.TypeApplications, Hint.DataKinds, Hint.PolyKinds, Hint.TypeFamilies]]
-    Hint.reset
-    Hint.interpret "getGraphical @\"button\"" (Hint.as :: Model "button" -> UI Graphical)
+    Hint.setImports ["Graphics.UI.Refluxive", "Data.Material.UI.Component.Button"]
+    Hint.interpret "getGraphical @_ @\"button\"" (Hint.as :: Model "button" -> UI Graphical)
   case result of
     Right r -> replace "button" r
     Left err -> liftIO $ print err
