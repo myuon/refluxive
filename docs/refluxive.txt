@@ -37,7 +37,7 @@ RenderState :: Color -> Pos -> Pos -> RenderState
 [scaler] :: RenderState -> Pos
 
 -- | A function to draw <a>Graphical</a> objects
-render :: MonadIO m => Color -> Map (String, Int) Font -> Renderer -> Graphical -> (RenderState -> String -> m ()) -> m ()
+render :: MonadIO m => Color -> Map (String, Int) Font -> Renderer -> Graphical -> (RenderState -> Name -> m ()) -> m ()
 
 -- | Empty object
 empty :: Graphical
@@ -93,7 +93,7 @@ graphics :: [Graphical] -> Graphical
 clip :: Pos -> Graphical -> Graphical
 
 -- | Tagging id with given graphical (like CSS id)
-viewInfo :: String -> Graphical -> Graphical
+viewInfo :: Name -> Graphical -> Graphical
 
 -- | Text style for <a>text</a> object
 fill :: ShapeStyleType -> Bool
@@ -101,6 +101,11 @@ rounded :: ShapeStyleType -> Maybe Int
 
 -- | Shape style for <a>rectangle</a> object
 styles :: TextStyleType -> [Style]
+data Name
+Name :: String -> String -> Name
+instance GHC.Classes.Ord Graphics.UI.Refluxive.Graphical.Name
+instance GHC.Classes.Eq Graphics.UI.Refluxive.Graphical.Name
+instance GHC.Show.Show Graphics.UI.Refluxive.Graphical.Name
 instance Data.Default.Class.Default Graphics.UI.Refluxive.Graphical.RenderState
 instance Data.Default.Class.Default Graphics.UI.Refluxive.Graphical.TextStyleType
 instance Data.Default.Class.Default Graphics.UI.Refluxive.Graphical.ShapeStyleType
@@ -128,9 +133,9 @@ getGraphical :: (Component m a, MonadIO m) => Model a -> m Graphical
 
 -- | An instance for Component
 data ComponentView a
-ComponentView :: IORef (Model a) -> String -> IORef RenderState -> ComponentView a
+ComponentView :: IORef (Model a) -> Name -> IORef RenderState -> ComponentView a
 [modelRef] :: ComponentView a -> IORef (Model a)
-[name] :: ComponentView a -> String
+[name] :: ComponentView a -> Name
 [renderStateRef] :: ComponentView a -> IORef RenderState
 
 -- | Watcher type with context <tt>m</tt> and target ui name <tt>tgt</tt>
@@ -153,6 +158,7 @@ runUI :: UI () -> IO ()
 
 -- | Start a mainloop, render given components as root
 mainloop :: [SomeComponent] -> UI ()
+mainloopDev :: Show a => Maybe (MVar a, a -> UI ()) -> [SomeComponent] -> UI ()
 
 -- | Register a ComponentView to refluxive framework
 register :: Component UI a => ComponentView a -> UI ()
@@ -175,6 +181,9 @@ addWatchSignal :: Component UI tgt => ComponentView tgt -> Watcher UI tgt -> UI 
 -- | Quit the mainloop
 quit :: UI ()
 
+-- | Replace component's view
+replace :: (Component UI a) => String -> (Model a -> UI Graphical) -> UI ()
+
 -- | Utility function for loading font from ByteString in UI monad
 loadFontUI :: String -> ByteString -> UI ()
 
@@ -183,6 +192,8 @@ textSize :: String -> Int -> Text -> UI (V2 Int)
 
 -- | Get the size of text surface with default font
 textDefSize :: Text -> UI (V2 Int)
+data SomeComponent
+SomeComponent :: (ComponentView a) -> SomeComponent
 
 -- | Register a graphical object to raw component | This will override the
 --   previous graphical
